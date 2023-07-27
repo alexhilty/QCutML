@@ -21,7 +21,7 @@ circ_filename = "../qcircml_code/data/circol_test.p" # filename of circuit colle
 
 # batch parameters
 batch_size = 30
-loops = 100
+loops = 200
 train_percent = 0.8
 
 # model parameters
@@ -56,11 +56,13 @@ env = CutEnvironment(circol) # create cut environment
 model = CutActorCritic(action_size, fc_layer_list) # create model
 
 # test train step
-# episode_reward = int(train_step(train_data[0], model, env, critic_loss, optimizer, gamma=0.99))
-# episode_reward2 = int(train_step(train_data[1], model, env, critic_loss, optimizer, gamma=0.99))
+episode_reward = int(train_step(train_data[0], model, env, critic_loss, optimizer, gamma=0.99))
+episode_reward2 = int(train_step(train_data[1], model, env, critic_loss, optimizer, gamma=0.99))
 
-# print("episode_reward:", episode_reward)
-# print("episode_reward2:", episode_reward2)
+print("episode_reward:", episode_reward)
+print("episode_reward2:", episode_reward2)
+
+quit()
 
 # training loop
 episode_rewards = []
