@@ -24,6 +24,7 @@ def run_episode(circuit_batch, model, circuit_collection):
         # run the model and to get action probabilities and critic value
         image = tf.convert_to_tensor(env.get_image(), dtype=tf.float32)  # convert to tensor
         image = tf.expand_dims(image, 0)  # add batch dimension
+        print("image: " + str(image))
         action_logits_c, value = model(image)
 
         # sample next action from the action probability distribution
