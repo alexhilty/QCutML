@@ -54,6 +54,11 @@ def run_episode(circuit_batch, model, circuit_collection):
     values = values.stack()
     rewards = rewards.stack()
 
+    # print
+    # print("action_probs: " + str(action_probs))
+    # print("values: " + str(values))
+    # print("rewards: " + str(rewards))
+
     return action_probs, values, rewards
 
 # compute expected returns
