@@ -20,20 +20,22 @@ class CutEnvironment:
     # defining environment step (cutting a circuit)
     # the action is index of the gate to cut (column of image to remove)
     def cut_numpy(self, circuit_batch: np.array, actions: np.array):
-        '''Defines the environment step (cutting a circuit)
+        '''Defines the environment step (cutting a circuit, wrapped by cut() for use as tensorflow function)
         
         The action is index of the gate to cut (column of image to remove)
         
         Parameters
         ------------
-            action: int
-                index of the gate to cut (column of image to remove)
+            actions: np.array
+                indexes of the gate to cut (column of image to remove)
+            circuit_batch: np.array
+                batch of circuits to cut
 
         Returns
         ------------
             reward: float
                 reward for the action
-            state_image: np.array
+            state_image: np.array (FIXME: implement this)
                 image of the new state
         '''
 
@@ -67,7 +69,9 @@ class CutEnvironment:
     
     # wrapper for use as tensorflow function
     def cut(self, circuit_batch: tf.Tensor, actions: tf.Tensor):
-        return tf.numpy_function(self.cut_numpy, [circuit_batch, actions], [tf.float32])
+        '''See cut_numpy() for details.'''
+
+        return tf.numpy_function(self.cut_numpy, [circuit_batch, actions], [tf.float32]) # FIXME: numpy_function has some limitations
 
     # get image for current state
     def get_image(self, n: tf.Tensor = None):
@@ -75,7 +79,7 @@ class CutEnvironment:
 
         return tf.gather_nd(self.t_images, n)
     
-    def convert_to_images(self, indexes: tf.Tensor):
+    def convert_to_images_c(self, indexes: tf.Tensor):
         '''Converts the circuits in the given batch to images.
         
         Parameters
@@ -92,14 +96,8 @@ class CutEnvironment:
         image_shape = self.circol.images[0][0].shape
         index_shape = indexes.shape
 
-        # # print shapes
-        # print("index_shape: " + str(index_shape))
-        # print("image_list_shape: " + str(self.t_images.shape))
-
         # convert all circuits in batch to images using tf.scan
         images = tf.scan(
             lambda a, b: self.get_image(b), indexes, initializer = tf.zeros((image_shape[0], image_shape[1])))
-        
-        # print("images_shape: " + str(images.shape))
 
         return images

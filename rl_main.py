@@ -14,6 +14,7 @@ import copy
 # Custom Imports
 from model.ActorCritic import CutActorCritic
 from model.Utils import *
+from model.Environments import CutEnvironment
 
 # globals
 seed = 324
@@ -21,7 +22,7 @@ np.random.seed(seed)
 tf.random.set_seed(seed)
 
 # enable eager execution
-tf.compat.v1.enable_eager_execution()
+# tf.compat.v1.enable_eager_execution()
 
 # create test circuit batch
 # circuit_batch = tf.convert_to_tensor(np.array([[1, 10], [1, 11]]))
@@ -74,10 +75,18 @@ print("Number of training batches: " + str(len(train_data)))
 # create optimizer
 optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.01)
 
+# create cut environment
+env = CutEnvironment(circol)
+
+# define critic loss function
+huber_loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM)
+
 # test train step
-episode_reward = int(train_step(train_data[0], model, circol, optimizer, gamma=0.99))
+episode_reward = int(train_step(train_data[0], model, env, huber_loss, optimizer, gamma=0.99))
+episode_reward2 = int(train_step(train_data[1], model, env, huber_loss, optimizer, gamma=0.99))
 
 print("episode_reward:", episode_reward)
+print("episode_reward2:", episode_reward2)
 
 # # training loop
 # episode_rewards = []
