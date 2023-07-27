@@ -20,7 +20,7 @@ seed = 324 # seed for numpy and tensorflow
 circ_filename = "../qcircml_code/data/circol_test.p" # filename of circuit collection
 
 # batch parameters
-batch_size = 30
+batch_size = 20
 loops = 200
 train_percent = 0.8
 
@@ -56,13 +56,13 @@ env = CutEnvironment(circol) # create cut environment
 model = CutActorCritic(action_size, fc_layer_list) # create model
 
 # test train step
-episode_reward = int(train_step(train_data[0], model, env, critic_loss, optimizer, gamma=0.99))
-episode_reward2 = int(train_step(train_data[1], model, env, critic_loss, optimizer, gamma=0.99))
+# episode_reward = int(train_step(train_data[0], model, env, critic_loss, optimizer, gamma=0.99))
+# # episode_reward2 = int(train_step(train_data[1], model, env, critic_loss, optimizer, gamma=0.99))
 
-print("episode_reward:", episode_reward)
-print("episode_reward2:", episode_reward2)
+# print("episode_reward:", episode_reward)
+# # print("episode_reward2:", episode_reward2)
 
-quit()
+# quit()
 
 # training loop
 episode_rewards = []
@@ -108,7 +108,7 @@ moving_average = []
 for i in range(len(episode_rewards) - 1):
     moving_average.append(statistics.mean(episode_rewards[max(0, i - window_size):i + 1]))
 
-plt.plot(moving_average, color='g')
+plt.plot(moving_average, color='k')
 # show horizontal line at average
 plt.axhline(y=ep_avg, color='r', linestyle='-')
 plt.show()

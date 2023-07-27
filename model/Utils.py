@@ -35,6 +35,8 @@ def run_episode(circuit_batch, model, env: CutEnvironment):
     # compute all images in batch
     images = env.convert_to_images_c(circuit_batch)
 
+    # print("images: " + str(images))
+
     # run model on images
     action_logits_c, values = model(images)
     values = tf.squeeze(values)
@@ -54,8 +56,8 @@ def run_episode(circuit_batch, model, env: CutEnvironment):
     # print("action_probs_c: " + str(action_probs_c))
 
     # print("\naction_probs: " + str(action_probs))
-    print("rewards: " + str(rewards))
-    print("values: " + str(values))
+    # print("rewards: " + str(rewards))
+    # print("values: " + str(values))
     # print("images: " + str(images))
     # print()
 
