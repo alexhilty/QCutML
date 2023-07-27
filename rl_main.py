@@ -23,35 +23,11 @@ tf.random.set_seed(seed)
 # load circuit collection
 circol = pickle.load(open("../qcircml_code/data/circol_test.p", "rb"))
 
-# generate images
-circol.convert_to_images()
-
 # create batches
 batch_size = 5
 loops = 5
-batched_circuits = []
-# l = np.arange(0, len(circol.circuits[-1]))
-# l = np.arange(0, 10)
-index_list_master = [[len(circol.circuits) - 1, i] for i in range(0, len(circol.circuits[-1])) ] # create list of all possible circuit indexes
-
-# put 80% of the data in the training set
-index_list = index_list_master[:int(len(index_list_master) * 0.02)]
-validation_list = index_list_master[int(len(index_list_master) * 0.8):]
-
-for i in range(loops):
-
-    l = copy.deepcopy(index_list)
-    np.random.shuffle(l) # shuffle list
-    batched_circuits_temp = [l[i:i + batch_size] for i in range(0, len(l), batch_size)]
-
-    # remove last batch if it is not full
-    if len(batched_circuits_temp[-1]) != batch_size:
-        batched_circuits_temp.pop(-1)
-
-    batched_circuits.extend(batched_circuits_temp)
-
-# 80% of the data is used for training, 20% for validation
-train_data = batched_circuits
+train_percent = 0.8
+train_data, val_data = create_dataset(batch_size, loops, circol, train_percent)
 
 # convert to tensor
 train_data = tf.convert_to_tensor(train_data, dtype=tf.int32)

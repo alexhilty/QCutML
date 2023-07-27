@@ -1,6 +1,8 @@
 import tensorflow as tf
 import numpy as np
 from model.Environments import CutEnvironment
+from CircuitCollection import CircuitCollection
+import copy
 
 # function for running one episode
 # one episode consists of performing one cut on a batch of circuits
@@ -88,9 +90,42 @@ def compute_loss(action_probs: tf.Tensor, values: tf.Tensor, returns: tf.Tensor,
 
     return actor_loss + critic_loss
 
-def create_dataset():
+def create_dataset(batch_size: int, loops: int, circol: CircuitCollection, training_percent: float = 0.8):
     '''Creates a dataset of circuits to train on'''
-    return
+    
+    train_batch = []
+    validation_batch = []
+    index_list_master = [[len(circol.circuits) - 1, i] for i in range(0, len(circol.circuits[-1])) ] # create list of all possible circuit indexes
+
+    # put training_percent% of the data in the training set
+    train_index = index_list_master[:int(len(index_list_master) * training_percent)]
+    validation_index = index_list_master[int(len(index_list_master) * training_percent):]
+
+    for j in range(loops):
+
+        ###### train set
+        t = copy.deepcopy(train_index)
+        np.random.shuffle(t) # shuffle list
+        train_batch_temp = [t[i:i + batch_size] for i in range(0, len(t), batch_size)]
+
+        # remove last batch if it is not full
+        if len(train_batch_temp[-1]) != batch_size:
+            train_batch_temp.pop(-1)
+
+        train_batch.extend(train_batch_temp)
+
+        ###### validation set
+        v = copy.deepcopy(validation_index)
+        np.random.shuffle(v) # shuffle list
+        validation_batch_temp = [v[i:i + batch_size] for i in range(0, len(v), batch_size)]
+
+        # remove last batch if it is not full
+        if len(validation_batch_temp[-1]) != batch_size:
+            validation_batch_temp.pop(-1)
+
+        validation_batch.extend(validation_batch_temp)
+
+    return train_batch, validation_batch
 
 # define training step
 @tf.function # compiles function into tensorflow graph for faster execution
