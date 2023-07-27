@@ -125,7 +125,7 @@ def create_dataset(batch_size: int, loops: int, circol: CircuitCollection, train
 
         validation_batch.extend(validation_batch_temp)
 
-    return train_batch, validation_batch
+    return tf.convert_to_tensor(train_batch, tf.int32), tf.convert_to_tensor(validation_batch, tf.int32)
 
 # define training step
 @tf.function # compiles function into tensorflow graph for faster execution
