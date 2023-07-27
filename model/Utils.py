@@ -47,15 +47,15 @@ def run_episode(circuit_batch, model, env: CutEnvironment):
     rewards = env.cut(circuit_batch, action)
 
     # print
-    print("action_logits_c: " + str(action_logits_c))
-    print("action: " + str(action))
-    print("action_probs_c: " + str(action_probs_c))
+    # print("action_logits_c: " + str(action_logits_c))
+    # print("action: " + str(action))
+    # print("action_probs_c: " + str(action_probs_c))
 
-    print("\naction_probs: " + str(action_probs))
-    print("rewards: " + str(rewards))
-    print("values: " + str(values))
+    # print("\naction_probs: " + str(action_probs))
+    # print("rewards: " + str(rewards))
+    # print("values: " + str(values))
     # print("images: " + str(images))
-    print()
+    # print()
 
     return action_probs, values, rewards
 
@@ -92,7 +92,6 @@ def compute_loss(action_probs: tf.Tensor, values: tf.Tensor, returns: tf.Tensor,
 @tf.function # compiles function into tensorflow graph for faster execution
 def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, optimizer: tf.keras.optimizers.Optimizer, gamma: float) -> tf.Tensor:
     '''Runs a model training step'''
-    print("Training Step")
 
     with tf.GradientTape() as tape:
 

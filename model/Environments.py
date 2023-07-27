@@ -44,10 +44,6 @@ class CutEnvironment:
             state = circuit_batch[i]
             action = actions[i][0]
 
-            # print("\naction: " + str(action))
-            # print("state: " + str(state))
-            
-
             # remove gate from circuit
             gates = list(self.circol.circuits[state[0]][state[1]])
             gates.pop(action)
