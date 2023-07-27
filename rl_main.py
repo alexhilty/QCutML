@@ -1,5 +1,4 @@
 # main defintion for the reinforcement learning model
-#
 
 # Imports
 import numpy as np
@@ -8,116 +7,112 @@ import pickle
 import statistics
 import tqdm
 import matplotlib.pyplot as plt
-
 import copy
 
 # Custom Imports
-from model.ActorCritic import CutActorCritic
+from model.ActorCritic import CutActorCritic, RandomSelector
 from model.Utils import *
+from model.Environments import CutEnvironment
 
-# globals
-seed = 324
+######## Parameters ########
+seed = 324 # seed for numpy and tensorflow
+
+circ_filename = "../qcircml_code/data/circol_test.p" # filename of circuit collection
+
+# batch parameters
+batch_size = 30
+loops = 110
+train_percent = 0.8
+
+# model parameters
+action_size = 6 # number of actions the agent can take
+fc_layer_list = [512, 256, 128] # list of number of hidden units for each desired fully connected layer
+
+optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.01)
+critic_loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM) # define critic loss function
+load = False # load model weights from file # FIXME: not working
+model_load_filename = "../qcircml_code/data/model_weights3.h5" # filename of model weights
+model_save_filename = "../qcircml_code/data/mw_w_tf_function.h5" # filename of model weights
+
+# training parameters
+window_size = 100 # size of window for moving average
+
+######## Set Seed ########
 np.random.seed(seed)
-tf.random.set_seed(seed)
-
-# enable eager execution
-tf.compat.v1.enable_eager_execution()
-
-# create test circuit batch
-# circuit_batch = tf.convert_to_tensor(np.array([[1, 10], [1, 11]]))
-
-# create model
-model = CutActorCritic(6, 512)
-load = False
+# tf.random.set_seed(seed)
 
 # load circuit collection
-circol = pickle.load(open("./data/circol_test.p", "rb"))
+circol = pickle.load(open(circ_filename, "rb"))
 
-# generate images
-circol.convert_to_images()
+######## Create Batched Dataset ########
+train_data, val_data = create_dataset(batch_size, loops, circol, train_percent)
 
-# create batches
-batch_size = 30
-loops = 100
-batched_circuits = []
-l = np.arange(0, len(circol.circuits[-1]))
-index_list_master = [[len(circol.circuits) - 1, i] for i in range(0, len(circol.circuits[-1])) ] # create list of all possible circuit indexes
+print("\ntrain_data:", train_data.shape)
+print("val_data:", val_data.shape)
 
-# put 80% of the data in the training set
-index_list = index_list_master[:int(len(index_list_master) * 0.8)]
-validation_list = index_list_master[int(len(index_list_master) * 0.8):]
+######## Create Environment and Model ########
 
-for i in range(loops):
+env = CutEnvironment(circol) # create cut environment
+model = CutActorCritic(action_size, fc_layer_list) # create model
+rando = RandomSelector(action_size)
 
-    l = copy.deepcopy(index_list)
-    np.random.shuffle(l) # shuffle list
-    batched_circuits_temp = [l[i:i + batch_size] for i in range(0, len(l), batch_size)] 
+if load:
+    image_shape = (circol.images[-1][0].shape[0], circol.images[-1][0].shape[1])
+    dummy = tf.zeros((1, image_shape[0], image_shape[1]))
 
-    batched_circuits.extend(batched_circuits_temp)
-
-# 80% of the data is used for training, 20% for validation
-train_data = batched_circuits
-
-# train_data = batched_circuits[:int(len(batched_circuits) * 0.8)]
-# val_data = batched_circuits[int(len(batched_circuits) * 0.8):]
-
-# print the number of training and validation batches
-print("Number of training batches: " + str(len(train_data)))
-# print("Number of validation batches: " + str(len(val_data)))
-
-# create optimizer
-optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.01)
+    print("image_shape:", image_shape)
+    print("dummy:", str(dummy))
+    
+    action_logits_c, values = model(dummy) # call model once to initialize weights
+    model.load_weights(model_save_filename)
 
 # test train step
-episode_reward = int(train_step(tf.convert_to_tensor(train_data[0]), model, circol, optimizer, gamma=0.99))
-print("Episode reward: " + str(episode_reward))
-quit()
 
-# training loop
-episode_rewards = []
+# tf.summary.trace_on(graph=True, profiler=True)
+# episode_reward = int(train_step(train_data[0], model, env, critic_loss, optimizer, gamma=0.99))
+# writer = tf.summary.create_file_writer("../qcircml_code/data/logs")
+# with writer.as_default():
+#     tf.summary.trace_export(name="my_func_trace", step=0, profiler_outdir="../qcircml_code/data/logs")
+# episode_reward2 = int(train_step(train_data[1], model, env, critic_loss, optimizer, gamma=0.99))
 
-t = tqdm.trange(len(train_data))
-for i in t:
-    # run train step
-    episode_reward = int(train_step(tf.convert_to_tensor(train_data[i]), model, circol, optimizer, gamma=0.99))
+# print("episode_reward:", episode_reward)
+# print("episode_reward2:", episode_reward2)
 
-    if i == 0 and load:
-        model.load_weights("./data/model_weights2.h5")
+# quit()
 
-    # store episode reward
-    episode_rewards.append(episode_reward)
+######## Train Model ########
+episode_rewards, random_rewards, running_average, random_average = train_loop(train_data, model, rando, env, critic_loss, optimizer, window_size, model_save_filename)
 
-    # keep running average of episode rewards
-    running_average = statistics.mean(episode_rewards)
+######## Save Data ########
+# put all data into one csv file
+# data = np.array([episode_rewards, random_rewards, running_average, random_average])
+# np.savetxt("../qcircml_code/data/data.csv", data, delimiter=",")
 
-    # calculate average of last 100 episodes
-    if i > 100:
-        moving_average = statistics.mean(episode_rewards[i - 100:i])
-    else:
-        moving_average = running_average
-
-    # update tqdm
-    t.set_description("Running average: " + str(round(running_average,2)) + " Moving average: " + str(round(moving_average,2)))
-
+######## Plot Data ########
 print()
-print("Possible Rewards:",list(set(episode_rewards)))
-ep_avg = statistics.mean(list(set(episode_rewards)))
-print("Average of Possible Rewards:", ep_avg) 
-
-# save model
-model.save_weights("./data/model_weights_07262023.h5")
+# print("Possible Rewards:",list(set(episode_rewards)))
+# ep_avg = statistics.mean(list(set(episode_rewards)))
+# print("Average of Possible Rewards:", ep_avg)
 
 # plot episode rewards
-plt.plot(episode_rewards)
+plt.title("Episode Rewards")
+# plt.plot(episode_rewards)
 plt.xlabel("Episode")
 plt.ylabel("Episode Reward")
 
 # plot moving average
 moving_average = []
+moving_avg_random = []
 for i in range(len(episode_rewards) - 1):
-    moving_average.append(statistics.mean(episode_rewards[max(0, i - 100):i + 1]))
+    moving_average.append(statistics.mean(episode_rewards[max(0, i - window_size):i + 1]))
+    moving_avg_random.append(statistics.mean(random_rewards[max(0, i - window_size):i + 1]))
 
-plt.plot(moving_average, color='g')
+plt.plot(moving_average, color='k', label='Agent')
+plt.plot(moving_avg_random, color='b', label='Random')
 # show horizontal line at average
-plt.axhline(y=ep_avg, color='r', linestyle='-')
+plt.axhline(y=random_average, color='r', linestyle='-', label='Random Average')
+plt.legend()
+
+fig = plt.gcf()
+fig.savefig("../qcircml_code/data/episode_rewards.png")
 plt.show()
