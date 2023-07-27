@@ -130,7 +130,7 @@ def create_dataset(batch_size: int, loops: int, circol: CircuitCollection, train
     return tf.convert_to_tensor(train_batch, tf.int32), tf.convert_to_tensor(validation_batch, tf.int32)
 
 # define training step
-# @tf.function # compiles function into tensorflow graph for faster execution
+@tf.function # compiles function into tensorflow graph for faster execution
 def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, optimizer: tf.keras.optimizers.Optimizer, gamma: float) -> tf.Tensor:
     '''Runs a model training step'''
 

@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import copy
 
 # Custom Imports
-from model.ActorCritic import CutActorCritic
+from model.ActorCritic import CutActorCritic, RandomSelector
 from model.Utils import *
 from model.Environments import CutEnvironment
 
@@ -20,8 +20,8 @@ seed = 324 # seed for numpy and tensorflow
 circ_filename = "../qcircml_code/data/circol_test.p" # filename of circuit collection
 
 # batch parameters
-batch_size = 20
-loops = 200
+batch_size = 31
+loops = 100
 train_percent = 0.8
 
 # model parameters
@@ -31,7 +31,8 @@ fc_layer_list = [512, 256, 128] # list of number of hidden units for each desire
 optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.01)
 critic_loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM) # define critic loss function
 load = False # load model weights from file # FIXME: not working
-model_filename = "../qcircml_code/data/model_weights3.h5" # filename of model weights
+model_load_filename = "../qcircml_code/data/model_weights3.h5" # filename of model weights
+model_save_filename = "../qcircml_code/data/mw_w_tf_function.h5" # filename of model weights
 
 # training parameters
 window_size = 100 # size of window for moving average
@@ -54,6 +55,17 @@ print("val_data:", val_data.shape)
 
 env = CutEnvironment(circol) # create cut environment
 model = CutActorCritic(action_size, fc_layer_list) # create model
+rando = RandomSelector(action_size)
+
+if load:
+    image_shape = (circol.images[-1][0].shape[0], circol.images[-1][0].shape[1])
+    dummy = tf.zeros((1, image_shape[0], image_shape[1]))
+
+    print("image_shape:", image_shape)
+    print("dummy:", str(dummy))
+    
+    action_logits_c, values = model(dummy) # call model once to initialize weights
+    model.load_weights(model_save_filename)
 
 # test train step
 # episode_reward = int(train_step(train_data[0], model, env, critic_loss, optimizer, gamma=0.99))
@@ -66,26 +78,32 @@ model = CutActorCritic(action_size, fc_layer_list) # create model
 
 # training loop
 episode_rewards = []
+random_rewards = []
 
 t = tqdm.trange(len(train_data)) # for showing progress bar
 for i in t:
     # run train step
     episode_reward = int(train_step(train_data[i], model, env, critic_loss, optimizer, gamma=0.99))
+    random_reward = int(train_step(train_data[i], rando, env, critic_loss, optimizer, gamma=0.99))
 
     # if i == 0 and load:
-    #     model.load_weights("../qcircml_code/data/model_weights3.h5")
+    #     model.load_weights(model_filename)
 
     # store episode reward
     episode_rewards.append(episode_reward)
+    random_rewards.append(random_reward)
 
     # keep running average of episode rewards
     running_average = statistics.mean(episode_rewards)
+    random_average = statistics.mean(random_rewards)
 
     # calculate average of last 100 episodes
     if i > window_size:
         moving_average = statistics.mean(episode_rewards[i - 100:i])
+        random_moving_average = statistics.mean(random_rewards[i - 100:i])
     else:
         moving_average = running_average
+        random_moving_average = random_average
 
     # update tqdm (progress bar)
     t.set_description("Running average: {:04.2f}, Moving average: {:04.2f}".format(running_average, moving_average))
@@ -96,7 +114,7 @@ ep_avg = statistics.mean(list(set(episode_rewards)))
 print("Average of Possible Rewards:", ep_avg) 
 
 # save model
-model.save_weights("../qcircml_code/data/model_weights3.h5")
+model.save_weights(model_save_filename)
 
 # plot episode rewards
 plt.plot(episode_rewards)
@@ -110,5 +128,5 @@ for i in range(len(episode_rewards) - 1):
 
 plt.plot(moving_average, color='k')
 # show horizontal line at average
-plt.axhline(y=ep_avg, color='r', linestyle='-')
+plt.axhline(y=random_average, color='r', linestyle='-')
 plt.show()

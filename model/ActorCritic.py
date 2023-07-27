@@ -48,3 +48,25 @@ class CutActorCritic(tf.keras.Model):
             x = layer(x)
 
         return self.actor(x), self.critic(x)
+    
+class RandomSelector(tf.keras.Model):
+
+    def __init__(self, num_actions: int):
+        super().__init__()
+
+        self.num_actions = num_actions
+
+    def call(self, inputs: tf.Tensor):
+
+        # print(tf.random.uniform(shape=(inputs.shape[0], self.num_actions)))
+
+        # create a tensor with number 1 in a random position for each batch
+        # print(inputs.shape)
+
+        uni = tf.repeat([1/inputs.shape[2]], inputs.shape[2])
+        uni = tf.repeat([uni], repeats = [inputs.shape[0]], axis = 0)
+
+        # print(uni)
+
+        # quit()
+        return uni, tf.ones(shape=(inputs.shape[0], 1))
