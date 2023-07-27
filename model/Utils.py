@@ -37,7 +37,7 @@ def run_episode(circuit_batch, model, circuit_collection):
         # apply action to the environment to get next state and reward
         action = np.array(action)
         # print("action: " + str(action))
-        reward, image, done = env.cut(action)
+        reward, image = env.cut(action)
 
         # print("reward: " + str(reward))
         

@@ -27,11 +27,11 @@ tf.compat.v1.enable_eager_execution()
 # circuit_batch = tf.convert_to_tensor(np.array([[1, 10], [1, 11]]))
 
 # create model
-model = CutActorCritic(6, 512)
+model = CutActorCritic(6, [512, 256, 128])
 load = False
 
 # load circuit collection
-circol = pickle.load(open("./data/circol_test.p", "rb"))
+circol = pickle.load(open("../qcircml_code/data/circol_test.p", "rb"))
 
 # generate images
 circol.convert_to_images()
@@ -80,7 +80,7 @@ for i in t:
     episode_reward = int(train_step(tf.convert_to_tensor(train_data[i]), model, circol, optimizer, gamma=0.99))
 
     if i == 0 and load:
-        model.load_weights("./data/model_weights2.h5")
+        model.load_weights("../qcircml_code/data/model_weights3.h5")
 
     # store episode reward
     episode_rewards.append(episode_reward)
@@ -103,7 +103,7 @@ ep_avg = statistics.mean(list(set(episode_rewards)))
 print("Average of Possible Rewards:", ep_avg) 
 
 # save model
-model.save_weights("./data/model_weights_07262023.h5")
+model.save_weights("../qcircml_code/data/model_weights3.h5")
 
 # plot episode rewards
 plt.plot(episode_rewards)
