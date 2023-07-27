@@ -8,6 +8,8 @@ import statistics
 import tqdm
 import matplotlib.pyplot as plt
 import copy
+import datetime
+import os
 
 # Custom Imports
 from model.ActorCritic import CutActorCritic, RandomSelector
@@ -17,7 +19,7 @@ from model.Environments import CutEnvironment
 ######## Parameters ########
 seed = 324 # seed for numpy and tensorflow
 
-circ_filename = "../qcircml_code/data/circol_test.p" # filename of circuit collection
+circ_filename = "../../qcircml_code/data/circol_test.p" # filename of circuit collection
 
 # batch parameters
 batch_size = 30
@@ -31,11 +33,15 @@ fc_layer_list = [512, 256, 128] # list of number of hidden units for each desire
 optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.01)
 critic_loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM) # define critic loss function
 load = False # load model weights from file # FIXME: not working
-model_load_filename = "../qcircml_code/data/model_weights3.h5" # filename of model weights
-model_save_filename = "../qcircml_code/data/mw_w_tf_function.h5" # filename of model weights
+model_load_filename = "../../qcircml_code/data/model_weights3.h5" # filename of model weights
 
 # training parameters
 window_size = 100 # size of window for moving average
+
+# saving parameters
+save = True # save data to file
+root_dir = "../../qcircml_code/data_" + datetime.datetime.now().strftime("%m%d%Y") + "/"
+date_str = datetime.datetime.now().strftime("%m%d%Y") # used for saving data
 
 ######## Set Seed ########
 np.random.seed(seed)
@@ -64,7 +70,7 @@ if load:
     print("dummy:", str(dummy))
     
     action_logits_c, values = model(dummy) # call model once to initialize weights
-    model.load_weights(model_save_filename)
+    model.load_weights(model_load_filename)
 
 # test train step
 
@@ -80,15 +86,31 @@ if load:
 
 # quit()
 
+######## Save Setup ########
+# check if root_dir exists, if not create it
+if not os.path.exists(root_dir):
+    os.mkdir(root_dir)
+
+# get list of all files in root_dir
+files = os.listdir(root_dir)
+
+# make list of substring of all filenames after last underscore
+runs = [int(filename.split("_")[-1]) for filename in files] # this is the run number
+max_run = max(runs) if len(runs) > 0 else -1 # get max run number
+
 ######## Train Model ########
+model_save_filename = root_dir + date_str + "_model_weights_" + str(max_run + 1) + ".h5"
 episode_rewards, random_rewards, running_average, random_average = train_loop(train_data, model, rando, env, critic_loss, optimizer, window_size, model_save_filename)
 
 ######## Save Data ########
+csv_filename = root_dir + date_str + "_data_" + str(max_run + 1) + ".csv"
 # put all data into one csv file
 # data = np.array([episode_rewards, random_rewards, running_average, random_average])
 # np.savetxt("../qcircml_code/data/data.csv", data, delimiter=",")
 
 ######## Plot Data ########
+plot_filename = root_dir + date_str + "_plot_" + str(max_run + 1) + ".png"
+
 print()
 # print("Possible Rewards:",list(set(episode_rewards)))
 # ep_avg = statistics.mean(list(set(episode_rewards)))
@@ -114,5 +136,5 @@ plt.axhline(y=random_average, color='r', linestyle='-', label='Random Average')
 plt.legend()
 
 fig = plt.gcf()
-fig.savefig("../qcircml_code/data/episode_rewards.png")
+fig.savefig(plot_filename)
 plt.show()
