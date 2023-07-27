@@ -69,7 +69,9 @@ print("Number of training batches: " + str(len(train_data)))
 optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.01)
 
 # test train step
-# episode_reward = int(train_step(circuit_batch, model, circol, optimizer, gamma=0.99))
+episode_reward = int(train_step(tf.convert_to_tensor(train_data[0]), model, circol, optimizer, gamma=0.99))
+print("Episode reward: " + str(episode_reward))
+quit()
 
 # training loop
 episode_rewards = []
