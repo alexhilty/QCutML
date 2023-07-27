@@ -39,7 +39,8 @@ class CutEnvironment:
                 image of the new state
         '''
 
-        rewards = []
+        rewards = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True)
+
         for i in range(len(circuit_batch)):
             state = circuit_batch[i]
             action = actions[i][0]
@@ -56,12 +57,12 @@ class CutEnvironment:
             reward = self.circol.q_transpiled[state[0]][state[1]].depth() - self.circol.q_transpiled[new_state[0]][new_state[1]].depth() - 1
             reward = reward / abs(reward) * reward ** 2 if reward != 0 else 0
 
-            rewards.append(reward)
+            rewards.write(i, reward).mark_used()
 
             # reward = self.circol.q_transpiled[self.state[0]][self.state[1]].depth() / self.circol.q_transpiled[new_state[0]][new_state[1]].depth()
             
-        rewards = np.array(rewards)
-        return np.ndarray.astype(rewards, np.float32) #, self.get_image()
+        rewards = rewards.stack().numpy()
+        return rewards #, self.get_image()
     
     # wrapper for use as tensorflow function
     def cut(self, circuit_batch: tf.Tensor, actions: tf.Tensor):

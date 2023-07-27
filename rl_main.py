@@ -20,8 +20,8 @@ seed = 324 # seed for numpy and tensorflow
 circ_filename = "../qcircml_code/data/circol_test.p" # filename of circuit collection
 
 # batch parameters
-batch_size = 31
-loops = 100
+batch_size = 30
+loops = 110
 train_percent = 0.8
 
 # model parameters
@@ -39,7 +39,7 @@ window_size = 100 # size of window for moving average
 
 ######## Set Seed ########
 np.random.seed(seed)
-tf.random.set_seed(seed)
+# tf.random.set_seed(seed)
 
 # load circuit collection
 circol = pickle.load(open(circ_filename, "rb"))
@@ -49,7 +49,6 @@ train_data, val_data = create_dataset(batch_size, loops, circol, train_percent)
 
 print("\ntrain_data:", train_data.shape)
 print("val_data:", val_data.shape)
-
 
 ######## Create Environment and Model ########
 
@@ -68,65 +67,52 @@ if load:
     model.load_weights(model_save_filename)
 
 # test train step
+
+# tf.summary.trace_on(graph=True, profiler=True)
 # episode_reward = int(train_step(train_data[0], model, env, critic_loss, optimizer, gamma=0.99))
-# # episode_reward2 = int(train_step(train_data[1], model, env, critic_loss, optimizer, gamma=0.99))
+# writer = tf.summary.create_file_writer("../qcircml_code/data/logs")
+# with writer.as_default():
+#     tf.summary.trace_export(name="my_func_trace", step=0, profiler_outdir="../qcircml_code/data/logs")
+# episode_reward2 = int(train_step(train_data[1], model, env, critic_loss, optimizer, gamma=0.99))
 
 # print("episode_reward:", episode_reward)
-# # print("episode_reward2:", episode_reward2)
+# print("episode_reward2:", episode_reward2)
 
 # quit()
 
-# training loop
-episode_rewards = []
-random_rewards = []
+######## Train Model ########
+episode_rewards, random_rewards, running_average, random_average = train_loop(train_data, model, rando, env, critic_loss, optimizer, window_size, model_save_filename)
 
-t = tqdm.trange(len(train_data)) # for showing progress bar
-for i in t:
-    # run train step
-    episode_reward = int(train_step(train_data[i], model, env, critic_loss, optimizer, gamma=0.99))
-    random_reward = int(train_step(train_data[i], rando, env, critic_loss, optimizer, gamma=0.99))
+######## Save Data ########
+# put all data into one csv file
+# data = np.array([episode_rewards, random_rewards, running_average, random_average])
+# np.savetxt("../qcircml_code/data/data.csv", data, delimiter=",")
 
-    # if i == 0 and load:
-    #     model.load_weights(model_filename)
-
-    # store episode reward
-    episode_rewards.append(episode_reward)
-    random_rewards.append(random_reward)
-
-    # keep running average of episode rewards
-    running_average = statistics.mean(episode_rewards)
-    random_average = statistics.mean(random_rewards)
-
-    # calculate average of last 100 episodes
-    if i > window_size:
-        moving_average = statistics.mean(episode_rewards[i - 100:i])
-        random_moving_average = statistics.mean(random_rewards[i - 100:i])
-    else:
-        moving_average = running_average
-        random_moving_average = random_average
-
-    # update tqdm (progress bar)
-    t.set_description("Running average: {:04.2f}, Moving average: {:04.2f}".format(running_average, moving_average))
-
+######## Plot Data ########
 print()
-print("Possible Rewards:",list(set(episode_rewards)))
-ep_avg = statistics.mean(list(set(episode_rewards)))
-print("Average of Possible Rewards:", ep_avg) 
-
-# save model
-model.save_weights(model_save_filename)
+# print("Possible Rewards:",list(set(episode_rewards)))
+# ep_avg = statistics.mean(list(set(episode_rewards)))
+# print("Average of Possible Rewards:", ep_avg)
 
 # plot episode rewards
-plt.plot(episode_rewards)
+plt.title("Episode Rewards")
+# plt.plot(episode_rewards)
 plt.xlabel("Episode")
 plt.ylabel("Episode Reward")
 
 # plot moving average
 moving_average = []
+moving_avg_random = []
 for i in range(len(episode_rewards) - 1):
     moving_average.append(statistics.mean(episode_rewards[max(0, i - window_size):i + 1]))
+    moving_avg_random.append(statistics.mean(random_rewards[max(0, i - window_size):i + 1]))
 
-plt.plot(moving_average, color='k')
+plt.plot(moving_average, color='k', label='Agent')
+plt.plot(moving_avg_random, color='b', label='Random')
 # show horizontal line at average
-plt.axhline(y=random_average, color='r', linestyle='-')
+plt.axhline(y=random_average, color='r', linestyle='-', label='Random Average')
+plt.legend()
+
+fig = plt.gcf()
+fig.savefig("../qcircml_code/data/episode_rewards.png")
 plt.show()

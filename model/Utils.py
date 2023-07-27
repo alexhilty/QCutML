@@ -3,6 +3,8 @@ import numpy as np
 from model.Environments import CutEnvironment
 from CircuitCollection import CircuitCollection
 import copy
+import tqdm
+import statistics
 
 # function for running one episode
 # one episode consists of performing one cut on a batch of circuits
@@ -130,7 +132,7 @@ def create_dataset(batch_size: int, loops: int, circol: CircuitCollection, train
     return tf.convert_to_tensor(train_batch, tf.int32), tf.convert_to_tensor(validation_batch, tf.int32)
 
 # define training step
-@tf.function # compiles function into tensorflow graph for faster execution
+# @tf.function # compiles function into tensorflow graph for faster execution # FIXME: doesn't train with this enabled for some reason
 def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, optimizer: tf.keras.optimizers.Optimizer, gamma: float) -> tf.Tensor:
     '''Runs a model training step'''
 
@@ -158,3 +160,38 @@ def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, 
     episode_reward = tf.math.reduce_sum(rewards)
 
     return episode_reward
+
+# define training loop
+def train_loop(train_data, model, rando, env, critic_loss, optimizer, window_size = 100, model_save_filename = None):
+    episode_rewards = []
+    random_rewards = []
+
+    t = tqdm.trange(len(train_data)) # for showing progress bar
+    for i in t:
+        # run train step
+        episode_reward = int(train_step(train_data[i], model, env, critic_loss, optimizer, gamma=0.99))
+        random_reward = int(train_step(train_data[i], rando, env, critic_loss, optimizer, gamma=0.99))
+
+        # store episode reward
+        episode_rewards.append(episode_reward)
+        random_rewards.append(random_reward)
+
+        # keep running average of episode rewards
+        running_average = statistics.mean(episode_rewards)
+        random_average = statistics.mean(random_rewards)
+
+        # calculate average of last 100 episodes
+        if i > window_size:
+            moving_average = statistics.mean(episode_rewards[i - 100:i])
+            random_moving_average = statistics.mean(random_rewards[i - 100:i])
+        else:
+            moving_average = running_average
+            random_moving_average = random_average
+
+        # update tqdm (progress bar)
+        t.set_description("Running average: {:04.2f}, Moving average: {:04.2f}".format(running_average, moving_average))
+
+    # save model
+    model.save_weights(model_save_filename)
+
+    return episode_rewards, random_rewards, running_average, random_average
