@@ -32,7 +32,7 @@ fc_layer_list = [512, 256, 128] # list of number of hidden units for each desire
 
 optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.01)
 critic_loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM) # define critic loss function
-load = False # load model weights from file # FIXME: not working
+load = False # load model weights from file
 model_load_filename = "../../qcircml_code/data/model_weights3.h5" # filename of model weights
 
 # training parameters
@@ -95,7 +95,7 @@ if not os.path.exists(root_dir):
 files = os.listdir(root_dir)
 
 # make list of substring of all filenames after last underscore
-runs = [int(filename.split("_")[-1]) for filename in files] # this is the run number
+runs = [int(filename.split("_")[-1].split(".")[0]) for filename in files] # this is the run number
 max_run = max(runs) if len(runs) > 0 else -1 # get max run number
 
 ######## Train Model ########
