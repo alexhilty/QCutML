@@ -38,66 +38,27 @@ def run_episode(circuit_batch, model, circuit_collection):
 
     # run model on images
     action_logits_c, values = model(images)
-
-    print("action_logits_c: " + str(action_logits_c))
-    print("value: " + str(values))
+    values = tf.squeeze(values)
 
     # sample next action from the action probability distribution
     action = tf.random.categorical(action_logits_c, 1)
     action_probs_c = tf.nn.softmax(action_logits_c) # compute log probability of actions
-    action_probs = tf.expand_dims(tf.gather_nd(action_probs_c, action, batch_dims = 1), 1) # write chosen action probability to tensor array
+    action_probs = tf.gather_nd(action_probs_c, action, batch_dims = 1) # write chosen action probability to tensor array
 
     # apply action to environment to get next state and reward
-    rewards = tf.expand_dims(env.cut(circuit_batch, action), 1)
+    # FIXME: later get images here too
+    rewards = env.cut(circuit_batch, action)
 
     # print
+    print("action_logits_c: " + str(action_logits_c))
     print("action: " + str(action))
     print("action_probs_c: " + str(action_probs_c))
-    print("action_probs: " + str(action_probs))
 
-    print("\nrewards: " + str(rewards))
+    print("\naction_probs: " + str(action_probs))
+    print("rewards: " + str(rewards))
+    print("values: " + str(values))
     # print("images: " + str(images))
-
-
-
-    # # FIXME: later modify to put all circuits in one batch and call model once
-    # for i, circuit in enumerate(circuit_batch.numpy()):
-
-    #     # set state
-    #     env.set_state(circuit[0], circuit[1])
-
-    #     # run the model and to get action probabilities and critic value
-    #     image = tf.convert_to_tensor(env.get_image(), dtype=tf.float32)  # convert to tensor
-    #     image = tf.expand_dims(image, 0)  # add batch dimension
-    #     action_logits_c, value = model(image)
-
-    #     # sample next action from the action probability distribution
-    #     action = tf.random.categorical(action_logits_c, 1)[0, 0]
-    #     action_probs_c = tf.nn.softmax(action_logits_c) # compute log probability of actions
-    #     action_probs = action_probs.write(i, action_probs_c[0, action]) # write chosen action probability to tensor array
-
-    #     # store critic values
-    #     values = values.write(i, tf.squeeze(value))
-
-    #     # apply action to the environment to get next state and reward
-    #     action = np.array(action)
-    #     # print("action: " + str(action))
-    #     reward, image = env.cut(action)
-
-    #     # print("reward: " + str(reward))
-        
-    #     # # nicely print action_logits_c, value, action
-    #     # print("action_logits_c: " + str(action_logits_c))
-    #     # print("value: " + str(value))
-    #     # print("action: " + str(action))
-    #     # print("\n")
-
-    #     # store reward
-    #     rewards = rewards.write(i, reward)
-
-    action_probs = action_probs.stack()
-    values = values.stack()
-    rewards = rewards.stack()
+    print()
 
     return action_probs, values, rewards
 
@@ -115,16 +76,12 @@ def get_expected_return(rewards: tf.Tensor, gamma: float, standardize: bool = Tr
         returns = ((returns - tf.math.reduce_mean(returns)) / 
                (tf.math.reduce_std(returns) + eps))
 
-
     return returns
 
 # compute loss
 huber_loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM)
 def compute_loss(action_probs: tf.Tensor, values: tf.Tensor, returns: tf.Tensor) -> tf.Tensor:
     '''Computes the combined actor-critic loss'''
-
-    # print(returns)
-    # print(values)
 
     advantage = returns - values
 
@@ -139,6 +96,7 @@ def compute_loss(action_probs: tf.Tensor, values: tf.Tensor, returns: tf.Tensor)
 @tf.function
 def train_step(circuit_batch, model: tf.keras.Model, circuit_collection, optimizer: tf.keras.optimizers.Optimizer, gamma: float) -> tf.Tensor:
     '''Runs a model training step'''
+    print("Training Step")
 
     with tf.GradientTape() as tape:
 

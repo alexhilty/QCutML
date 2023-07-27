@@ -77,6 +77,8 @@ optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.01)
 # test train step
 episode_reward = int(train_step(train_data[0], model, circol, optimizer, gamma=0.99))
 
+print("episode_reward:", episode_reward)
+
 # # training loop
 # episode_rewards = []
 

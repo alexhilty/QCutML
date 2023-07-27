@@ -62,11 +62,12 @@ class CutEnvironment:
 
             # reward = self.circol.q_transpiled[self.state[0]][self.state[1]].depth() / self.circol.q_transpiled[new_state[0]][new_state[1]].depth()
             
-        return np.array(rewards) #, self.get_image()
+        rewards = np.array(rewards)
+        return np.ndarray.astype(rewards, np.float32) #, self.get_image()
     
     # wrapper for use as tensorflow function
     def cut(self, circuit_batch: tf.Tensor, actions: tf.Tensor):
-        return tf.numpy_function(self.cut_numpy, [circuit_batch, actions], [tf.int32])
+        return tf.numpy_function(self.cut_numpy, [circuit_batch, actions], [tf.float32])
 
     # get image for current state
     def get_image(self, n: tf.Tensor = None):
@@ -91,14 +92,14 @@ class CutEnvironment:
         image_shape = self.circol.images[0][0].shape
         index_shape = indexes.shape
 
-        # print shapes
-        print("index_shape: " + str(index_shape))
-        print("image_list_shape: " + str(self.t_images.shape))
+        # # print shapes
+        # print("index_shape: " + str(index_shape))
+        # print("image_list_shape: " + str(self.t_images.shape))
 
         # convert all circuits in batch to images using tf.scan
         images = tf.scan(
             lambda a, b: self.get_image(b), indexes, initializer = tf.zeros((image_shape[0], image_shape[1])))
         
-        print("images_shape: " + str(images.shape))
+        # print("images_shape: " + str(images.shape))
 
         return images
