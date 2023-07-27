@@ -20,8 +20,8 @@ seed = 324 # seed for numpy and tensorflow
 circ_filename = "../qcircml_code/data/circol_test.p" # filename of circuit collection
 
 # batch parameters
-batch_size = 5
-loops = 5
+batch_size = 30
+loops = 100
 train_percent = 0.8
 
 # model parameters
