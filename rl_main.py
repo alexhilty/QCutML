@@ -8,7 +8,6 @@ import pickle
 import statistics
 import tqdm
 import matplotlib.pyplot as plt
-
 import copy
 
 # Custom Imports
@@ -16,20 +15,10 @@ from model.ActorCritic import CutActorCritic
 from model.Utils import *
 from model.Environments import CutEnvironment
 
-# globals
+# setting seed
 seed = 324
 np.random.seed(seed)
 tf.random.set_seed(seed)
-
-# enable eager execution
-# tf.compat.v1.enable_eager_execution()
-
-# create test circuit batch
-# circuit_batch = tf.convert_to_tensor(np.array([[1, 10], [1, 11]]))
-
-# create model
-model = CutActorCritic(6, [512, 256, 128])
-load = False
 
 # load circuit collection
 circol = pickle.load(open("../qcircml_code/data/circol_test.p", "rb"))
@@ -80,6 +69,10 @@ env = CutEnvironment(circol)
 
 # define critic loss function
 huber_loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM)
+
+# create model
+model = CutActorCritic(6, [512, 256, 128])
+load = False
 
 # test train step
 episode_reward = int(train_step(train_data[0], model, env, huber_loss, optimizer, gamma=0.99))

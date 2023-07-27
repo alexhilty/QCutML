@@ -88,6 +88,10 @@ def compute_loss(action_probs: tf.Tensor, values: tf.Tensor, returns: tf.Tensor,
 
     return actor_loss + critic_loss
 
+def create_dataset():
+    '''Creates a dataset of circuits to train on'''
+    return
+
 # define training step
 @tf.function # compiles function into tensorflow graph for faster execution
 def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, optimizer: tf.keras.optimizers.Optimizer, gamma: float) -> tf.Tensor:
