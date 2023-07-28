@@ -24,12 +24,12 @@ circ_filename = "../../qcircml_code/data/circol_test.p" # filename of circuit co
 
 # batch parameters
 batch_size = 30
-loops = 100
-train_percent = 0.8
+loops = 500
+train_percent = 0.5
 
 # model parameters
 action_size = 6 # number of actions the agent can take
-fc_layer_list = [512, 256, 128] # list of number of hidden units for each desired fully connected layer
+fc_layer_list = [512, 256, 128, 64] # list of number of hidden units for each desired fully connected layer
 
 learning_rate = 0.01 # learning rate for optimizer
 optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=learning_rate)
@@ -141,18 +141,19 @@ hist_filename = root_dir + date_str + "_" + str(max_run + 1) + "_hist" + ".txt"
 
 optimal_cuts, optimal_circuits_index = compute_best_cuts(circol)
 chosen_cuts, hist = validation(val_data, model, env, optimal_cuts)
+random_cuts, random_hist = validation(val_data, rando, env, optimal_cuts)
 
 # write hist to file and print results
 with open(hist_filename, 'w') as f:
     f.write("Correct: %s\n" % hist["correct"])
     f.write("Incorrect: %s\n" % hist["incorrect"])
     f.write("Accuracy: %s\n" % (hist["correct"] / (hist["correct"] + hist["incorrect"])))
-    f.write("Random Accuracy: %s\n" % (1 / action_size))
+    f.write("Random Accuracy: %s\n" % (random_hist["correct"] / (random_hist["correct"] + random_hist["incorrect"])))
 
     print("Correct:", hist["correct"])
     print("Incorrect:", hist["incorrect"])
     print("Accuracy:", hist["correct"] / (hist["correct"] + hist["incorrect"]))
-    print("Random Accuracy:", 1 / action_size)
+    print("Random Accuracy:", random_hist["correct"] / (random_hist["correct"] + random_hist["incorrect"]))
 
 # # plot histogram
 # plt.title("Validation Results")
