@@ -24,7 +24,7 @@ circ_filename = "../../qcircml_code/data/circol_test.p" # filename of circuit co
 
 # batch parameters
 batch_size = 30
-loops = 300
+loops = 100
 train_percent = 0.8
 
 # model parameters
@@ -42,8 +42,29 @@ window_size = 100 # size of window for moving average
 
 # saving parameters
 save = True # save data to file
-root_dir = "../../qcircml_code/data_" + datetime.datetime.now().strftime("%m%d%Y") + "_2/"
+root_dir = "../../qcircml_code/data_" + datetime.datetime.now().strftime("%m%d%Y") + "_3/"
 date_str = datetime.datetime.now().strftime("%m%d%Y") # used for saving data
+
+# notes
+notes = ""
+
+######## Create Root Directory ########
+# check if root_dir exists, if not create it
+if not os.path.exists(root_dir):
+    os.mkdir(root_dir)
+
+# get list of all folders in root_dir
+folders = os.listdir(root_dir)
+
+# make list of substring of all filenames after last underscore
+runs = [int(foldername) for foldername in folders] # this is the run number
+max_run = max(runs) if len(runs) > 0 else -1 # get max run number
+
+root_dir = root_dir + str(max_run + 1) + "/" # create subfolder for this run
+
+# check if root_dir exists, if not create it
+if not os.path.exists(root_dir):
+    os.mkdir(root_dir)
 
 # put all parameters into a dictionary
 parameters = {
@@ -62,7 +83,8 @@ parameters = {
     "window_size": window_size,
     "save": save,
     "root_dir": root_dir,
-    "date_str": date_str
+    "date_str": date_str,
+    "notes": notes
 }
 
 ######## Set Seed ########
@@ -107,18 +129,6 @@ if load:
 # print("episode_reward2:", episode_reward2)
 
 # quit()
-
-######## Save Setup ########
-# check if root_dir exists, if not create it
-if not os.path.exists(root_dir):
-    os.mkdir(root_dir)
-
-# get list of all files in root_dir
-files = os.listdir(root_dir)
-
-# make list of substring of all filenames after last underscore
-runs = [int(filename.split("_")[-2]) for filename in files] # this is the run number
-max_run = max(runs) if len(runs) > 0 else -1 # get max run number
 
 ######## Save Parameters ########
 parameters_filename = root_dir + date_str + "_" + str(max_run + 1) + "_parameters"  + ".txt"

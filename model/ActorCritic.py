@@ -6,7 +6,7 @@ import numpy as np
 class CutActorCritic(tf.keras.Model):
     '''Neural Network Model for Actor Critic Agent. Inherits from tf.keras.Model.'''
 
-    def __init__(self, num_actions: int, fc_layer_list: list):
+    def __init__(self, num_actions: int, fc_layer_list: list, convolutional = (0, 0)):
         '''Initialize the Actor and Critic Model
         
         Defines the model layers using fc_layer_list (all fully connected layers)
@@ -19,6 +19,9 @@ class CutActorCritic(tf.keras.Model):
                 list of number of hidden units for each desired fully connected layer
         '''
         super().__init__()
+
+        # if convolutional != (0, 0):
+            # self.conv = layers.Conv2D(convolutional[0], convolutional[1], activation="relu",)
 
         self.flat = layers.Flatten() # start by flattening image
         self.call_count = 0

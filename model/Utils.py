@@ -155,10 +155,13 @@ def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, 
         loss = compute_loss(action_probs, values, returns, critic_loss_func)
 
     # compute the gradients from the loss
+    # print(model.trainable_variables)
     grads = tape.gradient(loss, model.trainable_variables)
 
     # apply the gradients to the model's parameters
     optimizer.apply_gradients(zip(grads, model.trainable_variables))
+
+    # quit(0)
 
     episode_reward = tf.math.reduce_sum(rewards)
 
