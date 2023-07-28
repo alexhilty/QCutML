@@ -76,3 +76,22 @@ class RandomSelector(tf.keras.Model):
 
         # quit()
         return uni, tf.ones(shape=(inputs.shape[0], 1))
+    
+# an actor that will always pick the same one
+class FixedSelector(tf.keras.Model):
+
+    def __init__(self, num_actions:int, constant_action:int):
+        super().__init__()
+
+        self.num_actions = num_actions
+        self.constant_action = constant_action
+        self.call_count = 0
+
+    def call(self, inputs: tf.Tensor):
+        # create a tensor of length num_actions with all zeros except for a 1 in the constant_action position
+        self.call_count += 1
+
+        uni = tf.repeat([0], self.num_actions)
+        uni[self.constant_action] = 1
+
+        return uni, tf.ones(shape=(inputs.shape[0], 1))
