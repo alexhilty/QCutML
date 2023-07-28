@@ -50,7 +50,7 @@ def run_episode(circuit_batch, model, env: CutEnvironment):
 
     # apply action to environment to get next state and reward
     # FIXME: later get images here too
-    rewards = env.cut(circuit_batch, action)
+    rewards, depths = env.cut(circuit_batch, action)
 
     # print
     # print("action_logits_c: " + str(action_logits_c))
@@ -254,29 +254,72 @@ def compute_best_cuts(circol: CircuitCollection):
 
     return optimal_cuts, optimal_circuits
 
-# # define validation loop
-def validation(val_data, model, env, best_cuts):
-    '''best_cuts is a list of the indecies of the best cuts for every circuit'''
-    chosen_cuts = []
-    hist = {"correct": 0, "incorrect": 0}
+# # # define validation loop
+# def validation(val_data, model, env, best_cuts):
+#     '''best_cuts is a list of the indecies of the best cuts for every circuit'''
+#     chosen_cuts = []
+#     hist = {"correct": 0, "incorrect": 0}
+
+#     # convert batch to images
+#     images = env.convert_to_images_c(val_data)
+
+#     # sample action from model
+#     action_logits_c, values = model(images)
+#     action = tf.random.categorical(action_logits_c, 1).numpy()
+
+#     for j in range(len(action)):
+#         # store chosen cut
+#         chosen_cuts.append(action[j][0])
+
+#         # compare with best cut
+#         best = best_cuts[val_data[j][1]]
+
+#         if chosen_cuts[-1] in best:
+#             hist["correct"] += 1
+#         else:
+#             hist["incorrect"] += 1
+
+#     return chosen_cuts, hist
+
+# another version of validation that gets more nuanced histogram data
+def validation2(val_indexes, model, env, optimal_cuts):
+    hist = {}
+    opt_cuts_temp = []
 
     # convert batch to images
-    images = env.convert_to_images_c(val_data)
+    images = env.convert_to_images_c(val_indexes)
 
     # sample action from model
     action_logits_c, values = model(images)
     action = tf.random.categorical(action_logits_c, 1).numpy()
 
-    for j in range(len(action)):
-        # store chosen cut
-        chosen_cuts.append(action[j][0])
+    # choose first cut for each list in optimal_cuts
+    for i in range(len(val_indexes)):
+        opt_cuts_temp.append(optimal_cuts[val_indexes[i][1]][0])
 
-        # compare with best cut
-        best = best_cuts[val_data[j][1]]
+    # print("opt_cuts_temp:", opt_cuts_temp)
+    opt_cuts_temp = tf.convert_to_tensor(opt_cuts_temp, tf.int32)
+    # transpose
+    opt_cuts_temp = tf.expand_dims(opt_cuts_temp, 0)
+    opt_cuts_temp = tf.transpose(opt_cuts_temp)
 
-        if chosen_cuts[-1] in best:
-            hist["correct"] += 1
+    # print("opt_cuts_temp:", opt_cuts_temp)
+
+    # cut circuits
+    rewards, depths = env.cut(val_indexes, action) # cut with chosen cuts
+    rewards_opt, depths_opt = env.cut(val_indexes, opt_cuts_temp) # cut with optimal cuts
+
+    # compute difference in depth
+    difference = depths.numpy() - depths_opt.numpy()
+
+    # compute histogram
+    for i in range(len(val_indexes)):
+        if difference[i] not in hist.keys():
+            hist[difference[i]] = 1
         else:
-            hist["incorrect"] += 1
+            hist[difference[i]] += 1
+    
+    action = action.squeeze()
+    return action, difference
 
-    return chosen_cuts, hist
+        

@@ -78,6 +78,8 @@ root_dir = root_dir + str(max_run + 1) + "/" # create subfolder for this run
 if not os.path.exists(root_dir):
     os.mkdir(root_dir)
 
+print("root_dir:", root_dir)
+
 # put all parameters into a dictionary
 parameters = {
     "seed": seed,
@@ -158,55 +160,6 @@ pickle.dump(parameters, open(parameters_pkl_filename, "wb"))
 model_save_filename = root_dir + date_str + "_" + str(max_run + 1) + "_weights" + ".h5"
 episode_rewards, random_rewards, running_average, random_average = train_loop(train_data, model, rando, env, critic_loss, optimizer, model_save_condition, window_size, model_save_filename)
 
-######## Validate Model ########
-hist_filename = root_dir + date_str + "_" + str(max_run + 1) + "_hist" + ".txt"
-
-optimal_cuts, optimal_circuits_index = compute_best_cuts(circol)
-chosen_cuts, hist = validation(val_data, model, env, optimal_cuts)
-random_cuts, random_hist = validation(val_data, rando, env, optimal_cuts)
-
-chosen_cuts_t, hist_t = validation(train_index, model, env, optimal_cuts)
-random_cuts_t, random_hist_t = validation(train_index, rando, env, optimal_cuts)
-
-# write hist to file and print results
-with open(hist_filename, 'w') as f:
-    f.write("Validation Results\n")
-    f.write("Correct: %s\n" % hist["correct"])
-    f.write("Incorrect: %s\n" % hist["incorrect"])
-    f.write("Accuracy: %s\n" % (hist["correct"] / (hist["correct"] + hist["incorrect"])))
-    f.write("Random Accuracy: %s\n" % (random_hist["correct"] / (random_hist["correct"] + random_hist["incorrect"])))
-
-    f.write("\nTraining Results\n")
-    f.write("Correct: %s\n" % hist_t["correct"])
-    f.write("Incorrect: %s\n" % hist_t["incorrect"])
-    f.write("Accuracy: %s\n" % (hist_t["correct"] / (hist_t["correct"] + hist_t["incorrect"])))
-    f.write("Random Accuracy: %s\n" % (random_hist_t["correct"] / (random_hist_t["correct"] + random_hist_t["incorrect"])))
-
-    print("Validation Results")
-    print("Correct:", hist["correct"])
-    print("Incorrect:", hist["incorrect"])
-    print("Accuracy:", hist["correct"] / (hist["correct"] + hist["incorrect"]))
-    print("Random Accuracy:", random_hist["correct"] / (random_hist["correct"] + random_hist["incorrect"]))
-
-    print("\nTraining Results")
-    print("Correct:", hist_t["correct"])
-    print("Incorrect:", hist_t["incorrect"])
-    print("Accuracy:", hist_t["correct"] / (hist_t["correct"] + hist_t["incorrect"]))
-    print("Random Accuracy:", random_hist_t["correct"] / (random_hist_t["correct"] + random_hist_t["incorrect"]))
-
-# # plot histogram
-# plt.title("Validation Results")
-# plt.xlabel("Correct/Incorrect")
-# plt.ylabel("Number of Circuits")
-
-# # show as percentages
-
-
-# plt.legend()
-# fig = plt.gcf()
-# plt.show()
-# fig.savefig(hist_filename)
-
 ######## Save Data ########
 csv_filename = root_dir + date_str + "_" + str(max_run + 1) + "_data" + ".csv"
 
@@ -249,4 +202,34 @@ plt.legend()
 
 fig = plt.gcf()
 fig.savefig(plot_filename)
+plt.show()
+
+######## Validate Model ########
+hist_filename = root_dir + date_str + "_" + str(max_run + 1) + "_hist" + ".txt"
+
+optimal_cuts, optimal_circuits_index = compute_best_cuts(circol)
+chosen_cuts, hist = validation2(val_data, model, env, optimal_cuts)
+random_cuts, random_hist = validation2(val_data, rando, env, optimal_cuts)
+
+chosen_cuts_t, hist_t = validation2(train_index, model, env, optimal_cuts)
+random_cuts_t, random_hist_t = validation2(train_index, rando, env, optimal_cuts)
+
+# # write hist to file and print results
+# with open(hist_filename, 'w') as f:
+
+random_full = np.concatenate((random_hist, random_hist_t))
+plot_hist = [hist, hist_t, random_full]
+# plot multi-bar histogram using hist, random_hist, hist_t, random_hist_t in matplotlib
+colors = ['red', 'tan', 'lime']
+labels = ['Agent Validation Data', 'Agent Training Data', 'Random']
+plt.hist(plot_hist, bins=range(-1, max(random_full) + 3), color=colors, label=labels, density=True)
+plt.legend()
+plt.title("Histogram of Gate Cut Depth Difference")
+plt.xlabel("Gate Cut Depth Difference")
+plt.ylabel("Percent")
+# show all x ticks
+plt.xticks(range(-1, max(random_full) + 3))
+
+fig = plt.gcf()
+fig.savefig(root_dir + date_str + "_" + str(max_run + 1) + "_hist" + ".png")
 plt.show()
