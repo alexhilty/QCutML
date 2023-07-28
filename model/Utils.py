@@ -168,9 +168,19 @@ def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, 
     return episode_reward
 
 # define training loop
-def train_loop(train_data, model, rando, env, critic_loss, optimizer, window_size = 100, model_save_filename = None):
+def train_loop(train_data, model, rando, env, critic_loss, optimizer, save_condition_func, window_size = 100, model_save_filename = None):
+    '''Runs the training loop for the model.
+    
+    Parameters
+    ------------
+        save_condition_func: function
+            function that takes the current moving average list and returns a boolean indicating whether to save the model'''
+
     episode_rewards = []
     random_rewards = []
+
+    moving_averages = []
+    save_checkpoint = 0
 
     t = tqdm.trange(len(train_data)) # for showing progress bar
     for i in t:
@@ -194,11 +204,18 @@ def train_loop(train_data, model, rando, env, critic_loss, optimizer, window_siz
             moving_average = running_average
             random_moving_average = random_average
 
+        moving_averages.append(moving_average)
+
+        if save_condition_func(moving_averages, save_checkpoint, window_size):
+            # print(model_save_filename.split(".h5")[0] + "_ " + str(i) + ".h5")
+            model.save_weights(model_save_filename.split(".h5")[0] + "_" + str(i) + ".h5")
+            save_checkpoint = i
+
         # update tqdm (progress bar)
-        t.set_description("Running average: {:04.2f}, Moving average: {:04.2f}".format(running_average, moving_average))
+        t.set_description("Checkpoint: {:05}, Running average: {:04.2f}, Moving average: {:04.2f}".format(save_checkpoint, running_average, moving_average))
 
     # save model
-    model.save_weights(model_save_filename)
+    model.save_weights(model_save_filename.split(".h5")[0] + "_final.h5")
 
     return episode_rewards, random_rewards, running_average, random_average
 

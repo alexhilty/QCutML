@@ -45,6 +45,18 @@ save = True # save data to file
 root_dir = "../../qcircml_code/data_" + datetime.datetime.now().strftime("%m%d%Y") + "_3/"
 date_str = datetime.datetime.now().strftime("%m%d%Y") # used for saving data
 
+def model_save_condition(moving_averages, last_checkpoint, window_size): # function to determine when to save model
+    if len(moving_averages) < window_size:
+        return False
+    
+    if len(moving_averages) == window_size:
+        # print("First checkpoint:", moving_averages[-1])
+        return True
+    
+    if moving_averages[-1] > moving_averages[last_checkpoint] + 4:
+        # print("Checkpoint:", moving_averages[-1])
+        return True
+
 # notes
 notes = ""
 
@@ -54,7 +66,7 @@ if not os.path.exists(root_dir):
     os.mkdir(root_dir)
 
 # get list of all folders in root_dir
-folders = os.listdir(root_dir)
+folders = [folder for folder in os.listdir(root_dir) if os.path.isdir(os.path.join(root_dir, folder))]
 
 # make list of substring of all filenames after last underscore
 runs = [int(foldername) for foldername in folders] # this is the run number
@@ -144,7 +156,7 @@ pickle.dump(parameters, open(parameters_pkl_filename, "wb"))
 
 ######## Train Model ########
 model_save_filename = root_dir + date_str + "_" + str(max_run + 1) + "_weights" + ".h5"
-episode_rewards, random_rewards, running_average, random_average = train_loop(train_data, model, rando, env, critic_loss, optimizer, window_size, model_save_filename)
+episode_rewards, random_rewards, running_average, random_average = train_loop(train_data, model, rando, env, critic_loss, optimizer, model_save_condition, window_size, model_save_filename)
 
 ######## Validate Model ########
 hist_filename = root_dir + date_str + "_" + str(max_run + 1) + "_hist" + ".txt"
