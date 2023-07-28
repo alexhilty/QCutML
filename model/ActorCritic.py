@@ -1,5 +1,6 @@
 from tensorflow.keras import layers
 import tensorflow as tf
+import numpy as np
 
 # defining agent/critic
 class CutActorCritic(tf.keras.Model):
@@ -91,7 +92,9 @@ class FixedSelector(tf.keras.Model):
         # create a tensor of length num_actions with all zeros except for a 1 in the constant_action position
         self.call_count += 1
 
-        uni = tf.repeat([0], self.num_actions)
+        uni = np.zeros(self.num_actions)
         uni[self.constant_action] = 1
+        uni = tf.convert_to_tensor(uni, dtype=tf.float32)
+        uni = tf.repeat([uni], repeats = [inputs.shape[0]], axis = 0)
 
         return uni, tf.ones(shape=(inputs.shape[0], 1))

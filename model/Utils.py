@@ -132,7 +132,7 @@ def create_dataset(batch_size: int, loops: int, circol: CircuitCollection, train
 
         # validation_batch.extend(validation_batch_temp)
 
-    return tf.convert_to_tensor(train_batch, tf.int32), tf.convert_to_tensor(validation_index, tf.int32)
+    return tf.convert_to_tensor(train_batch, tf.int32), tf.convert_to_tensor(train_index, tf.int32), tf.convert_to_tensor(validation_index, tf.int32)
 
 # define training step
 # @tf.function # compiles function into tensorflow graph for faster execution # FIXME: doesn't train with this enabled for some reason
@@ -240,8 +240,6 @@ def validation(val_data, model, env, best_cuts):
     chosen_cuts = []
     hist = {"correct": 0, "incorrect": 0}
 
-    print(val_data.shape)
-
     # convert batch to images
     images = env.convert_to_images_c(val_data)
 
@@ -260,25 +258,5 @@ def validation(val_data, model, env, best_cuts):
             hist["correct"] += 1
         else:
             hist["incorrect"] += 1
-
-    # for i in range(len(val_data)):
-       
-    #     images = env.convert_to_images_c(tf.expand_dims(val_data[i], 1))
-
-    #     # sample action from model
-    #     action_logits_c, values = model(images)
-    #     action = tf.random.categorical(action_logits_c, 1).numpy()
-
-    #     for j in range(len(action)):
-    #         # store chosen cut
-    #         chosen_cuts.append(action[j][0])
-
-    #         # compare with best cut
-    #         best = best_cuts[val_data[i][j][1]]
-
-    #         if chosen_cuts[-1] in best:
-    #             hist["correct"] += 1
-    #         else:
-    #             hist["incorrect"] += 1
 
     return chosen_cuts, hist

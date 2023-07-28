@@ -24,8 +24,8 @@ circ_filename = "../../qcircml_code/data/circol_test.p" # filename of circuit co
 
 # batch parameters
 batch_size = 30
-loops = 500
-train_percent = 0.5
+loops = 200
+train_percent = 0.8
 
 # model parameters
 action_size = 6 # number of actions the agent can take
@@ -73,7 +73,7 @@ np.random.seed(seed)
 circol = pickle.load(open(circ_filename, "rb"))
 
 ######## Create Batched Dataset ########
-train_data, val_data = create_dataset(batch_size, loops, circol, train_percent)
+train_data, train_index, val_data = create_dataset(batch_size, loops, circol, train_percent)
 
 # print("train_data:", train_data.shape)
 # print("val_data:", val_data.shape)
@@ -143,17 +143,34 @@ optimal_cuts, optimal_circuits_index = compute_best_cuts(circol)
 chosen_cuts, hist = validation(val_data, model, env, optimal_cuts)
 random_cuts, random_hist = validation(val_data, rando, env, optimal_cuts)
 
+chosen_cuts_t, hist_t = validation(train_index, model, env, optimal_cuts)
+random_cuts_t, random_hist_t = validation(train_index, rando, env, optimal_cuts)
+
 # write hist to file and print results
 with open(hist_filename, 'w') as f:
+    f.write("Validation Results\n")
     f.write("Correct: %s\n" % hist["correct"])
     f.write("Incorrect: %s\n" % hist["incorrect"])
     f.write("Accuracy: %s\n" % (hist["correct"] / (hist["correct"] + hist["incorrect"])))
     f.write("Random Accuracy: %s\n" % (random_hist["correct"] / (random_hist["correct"] + random_hist["incorrect"])))
 
+    f.write("\nTraining Results\n")
+    f.write("Correct: %s\n" % hist_t["correct"])
+    f.write("Incorrect: %s\n" % hist_t["incorrect"])
+    f.write("Accuracy: %s\n" % (hist_t["correct"] / (hist_t["correct"] + hist_t["incorrect"])))
+    f.write("Random Accuracy: %s\n" % (random_hist_t["correct"] / (random_hist_t["correct"] + random_hist_t["incorrect"])))
+
+    print("Validation Results")
     print("Correct:", hist["correct"])
     print("Incorrect:", hist["incorrect"])
     print("Accuracy:", hist["correct"] / (hist["correct"] + hist["incorrect"]))
     print("Random Accuracy:", random_hist["correct"] / (random_hist["correct"] + random_hist["incorrect"]))
+
+    print("\nTraining Results")
+    print("Correct:", hist_t["correct"])
+    print("Incorrect:", hist_t["incorrect"])
+    print("Accuracy:", hist_t["correct"] / (hist_t["correct"] + hist_t["incorrect"]))
+    print("Random Accuracy:", random_hist_t["correct"] / (random_hist_t["correct"] + random_hist_t["incorrect"]))
 
 # # plot histogram
 # plt.title("Validation Results")
