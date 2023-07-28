@@ -23,8 +23,8 @@ seed = 324 # seed for numpy and tensorflow
 circ_filename = "../../qcircml_code/data/circol_test.p" # filename of circuit collection
 
 # batch parameters
-batch_size = 25
-loops = 110
+batch_size = 30
+loops = 100
 train_percent = 0.8
 
 # model parameters
@@ -133,11 +133,39 @@ parameters_pkl_filename = root_dir + date_str + "_" + str(max_run + 1) + "_param
 pickle.dump(parameters, open(parameters_pkl_filename, "wb"))
 
 ######## Train Model ########
-print(model.call_count)
 model_save_filename = root_dir + date_str + "_" + str(max_run + 1) + "_weights" + ".h5"
 episode_rewards, random_rewards, running_average, random_average = train_loop(train_data, model, rando, env, critic_loss, optimizer, window_size, model_save_filename)
 
-print(model.call_count)
+######## Validate Model ########
+hist_filename = root_dir + date_str + "_" + str(max_run + 1) + "_hist" + ".txt"
+
+optimal_cuts, optimal_circuits_index = compute_best_cuts(circol)
+chosen_cuts, hist = validation(val_data, model, env, optimal_cuts)
+
+# write hist to file and print results
+with open(hist_filename, 'w') as f:
+    f.write("Correct: %s\n" % hist["correct"])
+    f.write("Incorrect: %s\n" % hist["incorrect"])
+    f.write("Accuracy: %s\n" % (hist["correct"] / (hist["correct"] + hist["incorrect"])))
+    f.write("Random Accuracy: %s\n" % (1 / action_size))
+
+    print("Correct:", hist["correct"])
+    print("Incorrect:", hist["incorrect"])
+    print("Accuracy:", hist["correct"] / (hist["correct"] + hist["incorrect"]))
+    print("Random Accuracy:", 1 / action_size)
+
+# # plot histogram
+# plt.title("Validation Results")
+# plt.xlabel("Correct/Incorrect")
+# plt.ylabel("Number of Circuits")
+
+# # show as percentages
+
+
+# plt.legend()
+# fig = plt.gcf()
+# plt.show()
+# fig.savefig(hist_filename)
 
 ######## Save Data ########
 csv_filename = root_dir + date_str + "_" + str(max_run + 1) + "_data" + ".csv"

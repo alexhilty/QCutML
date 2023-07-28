@@ -196,6 +196,26 @@ def train_loop(train_data, model, rando, env, critic_loss, optimizer, window_siz
 
     return episode_rewards, random_rewards, running_average, random_average
 
+# function for computing best cuts on top level circuits
+def compute_best_cuts(circol: CircuitCollection):
+    optimal_circuits_index = []
+    optimal_cuts = []
+
+    for j in range(len(circol.circuits[-1])): # loop through max lenght circuits
+        ind = circol.child_indecies(len(circol.circuits) - 1, j) # compute children indecies
+        depths = [circol.q_transpiled[n1][n2].depth() for n1, n2 in ind]
+        optimal_circuits_index.append(ind[np.argmin(depths)]) # choose child with lowest depth
+
+        # compute the index of the cut gate
+        parent_gates = circol.circuits[-1][j]
+        child_gates = circol.circuits[optimal_circuits_index[-1][0]][optimal_circuits_index[-1][1]]
+        for gate in parent_gates:
+            if gate not in child_gates:
+                optimal_cuts.append(parent_gates.index(gate))
+                break
+
+    return optimal_cuts, optimal_circuits_index
+
 # # define validation loop
 def validation(val_data, model, env, best_cuts):
     '''best_cuts is a list of the indecies of the best cuts for every circuit'''
