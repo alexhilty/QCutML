@@ -195,3 +195,6 @@ def train_loop(train_data, model, rando, env, critic_loss, optimizer, window_siz
     model.save_weights(model_save_filename)
 
     return episode_rewards, random_rewards, running_average, random_average
+
+# # define validation loop
+# def validation(val_data, model, best_cuts):

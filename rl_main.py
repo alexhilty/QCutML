@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import copy
 import datetime
 import os
+import csv
 
 # Custom Imports
 from model.ActorCritic import CutActorCritic, RandomSelector
@@ -22,7 +23,7 @@ seed = 324 # seed for numpy and tensorflow
 circ_filename = "../../qcircml_code/data/circol_test.p" # filename of circuit collection
 
 # batch parameters
-batch_size = 30
+batch_size = 25
 loops = 110
 train_percent = 0.8
 
@@ -30,7 +31,8 @@ train_percent = 0.8
 action_size = 6 # number of actions the agent can take
 fc_layer_list = [512, 256, 128] # list of number of hidden units for each desired fully connected layer
 
-optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=0.01)
+learning_rate = 0.01 # learning rate for optimizer
+optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=learning_rate)
 critic_loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM) # define critic loss function
 load = False # load model weights from file
 model_load_filename = "../../qcircml_code/data/model_weights3.h5" # filename of model weights
@@ -40,8 +42,28 @@ window_size = 100 # size of window for moving average
 
 # saving parameters
 save = True # save data to file
-root_dir = "../../qcircml_code/data_" + datetime.datetime.now().strftime("%m%d%Y") + "/"
+root_dir = "../../qcircml_code/data_" + datetime.datetime.now().strftime("%m%d%Y") + "_2/"
 date_str = datetime.datetime.now().strftime("%m%d%Y") # used for saving data
+
+# put all parameters into a dictionary
+parameters = {
+    "seed": seed,
+    "circ_filename": circ_filename,
+    "batch_size": batch_size,
+    "loops": loops,
+    "train_percent": train_percent,
+    "action_size": action_size,
+    "fc_layer_list": fc_layer_list,
+    "learning_rate": learning_rate,
+    "optimizer": type(optimizer),
+    "critic_loss": type(critic_loss),
+    "load": load,
+    "model_load_filename": model_load_filename,
+    "window_size": window_size,
+    "save": save,
+    "root_dir": root_dir,
+    "date_str": date_str
+}
 
 ######## Set Seed ########
 np.random.seed(seed)
@@ -53,8 +75,8 @@ circol = pickle.load(open(circ_filename, "rb"))
 ######## Create Batched Dataset ########
 train_data, val_data = create_dataset(batch_size, loops, circol, train_percent)
 
-print("\ntrain_data:", train_data.shape)
-print("val_data:", val_data.shape)
+# print("train_data:", train_data.shape)
+# print("val_data:", val_data.shape)
 
 ######## Create Environment and Model ########
 
@@ -95,21 +117,43 @@ if not os.path.exists(root_dir):
 files = os.listdir(root_dir)
 
 # make list of substring of all filenames after last underscore
-runs = [int(filename.split("_")[-1].split(".")[0]) for filename in files] # this is the run number
+runs = [int(filename.split("_")[-2]) for filename in files] # this is the run number
 max_run = max(runs) if len(runs) > 0 else -1 # get max run number
 
+######## Save Parameters ########
+parameters_filename = root_dir + date_str + "_" + str(max_run + 1) + "_parameters"  + ".txt"
+
+# save parameters to file
+with open(parameters_filename, 'w') as f:
+    for key in parameters.keys():
+        f.write("%s: %s\n" % (key, parameters[key]))
+
+# pickle parameter dictionary
+parameters_pkl_filename = root_dir + date_str + "_" + str(max_run + 1) + "_parameters"  + ".p"
+pickle.dump(parameters, open(parameters_pkl_filename, "wb"))
+
 ######## Train Model ########
-model_save_filename = root_dir + date_str + "_model_weights_" + str(max_run + 1) + ".h5"
+print(model.call_count)
+model_save_filename = root_dir + date_str + "_" + str(max_run + 1) + "_weights" + ".h5"
 episode_rewards, random_rewards, running_average, random_average = train_loop(train_data, model, rando, env, critic_loss, optimizer, window_size, model_save_filename)
 
+print(model.call_count)
+
 ######## Save Data ########
-csv_filename = root_dir + date_str + "_data_" + str(max_run + 1) + ".csv"
-# put all data into one csv file
-# data = np.array([episode_rewards, random_rewards, running_average, random_average])
-# np.savetxt("../qcircml_code/data/data.csv", data, delimiter=",")
+csv_filename = root_dir + date_str + "_" + str(max_run + 1) + "_data" + ".csv"
+
+# put all data in one csv
+with open(csv_filename, 'w', newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow(["Actor Average", running_average])
+    writer.writerow(["Random Average", random_average])
+    writer.writerow(["Episode Rewards", "Random Rewards"])
+
+    for i in range(len(episode_rewards)):
+        writer.writerow([episode_rewards[i], random_rewards[i]])
 
 ######## Plot Data ########
-plot_filename = root_dir + date_str + "_plot_" + str(max_run + 1) + ".png"
+plot_filename = root_dir + date_str + "_" + str(max_run + 1) + "_plot" + ".png"
 
 print()
 # print("Possible Rewards:",list(set(episode_rewards)))

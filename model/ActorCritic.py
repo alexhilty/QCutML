@@ -20,6 +20,7 @@ class CutActorCritic(tf.keras.Model):
         super().__init__()
 
         self.flat = layers.Flatten() # start by flattening image
+        self.call_count = 0
 
         # NOTE: for now use fully connected layers (like in tensorflow tutorial)
         self.common_layers = []
@@ -42,6 +43,8 @@ class CutActorCritic(tf.keras.Model):
                 input tensor to the model
         '''
 
+        self.call_count += 1
+
         x = self.flat(inputs) # NOTE: flatten image for now (maybe later replace with convolutional layer)
 
         for layer in self.common_layers:
@@ -55,6 +58,7 @@ class RandomSelector(tf.keras.Model):
         super().__init__()
 
         self.num_actions = num_actions
+        self.call_count = 0
 
     def call(self, inputs: tf.Tensor):
 
@@ -62,6 +66,8 @@ class RandomSelector(tf.keras.Model):
 
         # create a tensor with number 1 in a random position for each batch
         # print(inputs.shape)
+
+        self.call_count += 1
 
         uni = tf.repeat([1/inputs.shape[2]], inputs.shape[2])
         uni = tf.repeat([uni], repeats = [inputs.shape[0]], axis = 0)
