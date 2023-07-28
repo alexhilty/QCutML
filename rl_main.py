@@ -24,18 +24,18 @@ circ_filename = "../../qcircml_code/data/circol_test.p" # filename of circuit co
 
 # batch parameters
 batch_size = 30
-loops = 200
+loops = 300
 train_percent = 0.8
 
 # model parameters
 action_size = 6 # number of actions the agent can take
-fc_layer_list = [512, 256, 128, 64] # list of number of hidden units for each desired fully connected layer
+fc_layer_list = [1024, 256, 128] # list of number of hidden units for each desired fully connected layer
 
 learning_rate = 0.01 # learning rate for optimizer
 optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=learning_rate)
 critic_loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM) # define critic loss function
 load = False # load model weights from file
-model_load_filename = "../../qcircml_code/data/model_weights3.h5" # filename of model weights
+model_load_filename = "../../qcircml_code/data_07282023_2/07282023_14_weights.h5" # filename of model weights
 
 # training parameters
 window_size = 100 # size of window for moving average
@@ -88,8 +88,8 @@ if load:
     image_shape = (circol.images[-1][0].shape[0], circol.images[-1][0].shape[1])
     dummy = tf.zeros((1, image_shape[0], image_shape[1]))
 
-    print("image_shape:", image_shape)
-    print("dummy:", str(dummy))
+    # print("image_shape:", image_shape)
+    # print("dummy:", str(dummy))
     
     action_logits_c, values = model(dummy) # call model once to initialize weights
     model.load_weights(model_load_filename)
