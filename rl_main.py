@@ -23,10 +23,10 @@ seed = 324 # seed for numpy and tensorflow
 circ_filename = "../../qcircml_code/data/circol_test.p" # filename of circuit collection
 
 # batch parameters
-load_dataset = True # load dataset from file
+load_dataset = False # load dataset from file
 dataset_filename = "../../qcircml_code/data_07312023/9/07312023_9_dataset.p" # filename of batched dataset
 batch_size = 30
-loops = 100
+loops = 300
 train_percent = 0.8
 
 # model parameters
@@ -39,7 +39,7 @@ critic_loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM) # d
 load = False # load model weights from file
 model_load_filename = "../../qcircml_code/data_07282023_2/07282023_14_weights.h5" # filename of model weights
 
-validate_with_best = True # validate with best checkpoint
+validate_with_best = False # validate with best checkpoint
 
 # training parameters
 window_size = 100 # size of window for moving average
