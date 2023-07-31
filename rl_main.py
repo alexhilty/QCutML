@@ -23,6 +23,8 @@ seed = 324 # seed for numpy and tensorflow
 circ_filename = "../../qcircml_code/data/circol_test.p" # filename of circuit collection
 
 # batch parameters
+load_dataset = True # load dataset from file
+dataset_filename = "../../qcircml_code/data_07312023/9/07312023_9_dataset.p" # filename of batched dataset
 batch_size = 30
 loops = 100
 train_percent = 0.8
@@ -37,12 +39,14 @@ critic_loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM) # d
 load = False # load model weights from file
 model_load_filename = "../../qcircml_code/data_07282023_2/07282023_14_weights.h5" # filename of model weights
 
+validate_with_best = True # validate with best checkpoint
+
 # training parameters
 window_size = 100 # size of window for moving average
 
 # saving parameters
 save = True # save data to file
-root_dir = "../../qcircml_code/data_" + datetime.datetime.now().strftime("%m%d%Y") + "_3/"
+root_dir = "../../qcircml_code/data_" + datetime.datetime.now().strftime("%m%d%Y") + "/"
 date_str = datetime.datetime.now().strftime("%m%d%Y") # used for saving data
 
 def model_save_condition(moving_averages, last_checkpoint, window_size): # function to determine when to save model
@@ -92,13 +96,16 @@ parameters = {
     "learning_rate": learning_rate,
     "optimizer": type(optimizer),
     "critic_loss": type(critic_loss),
-    "load": load,
+    "load_model": load,
     "model_load_filename": model_load_filename,
     "window_size": window_size,
     "save": save,
     "root_dir": root_dir,
     "date_str": date_str,
-    "notes": notes
+    "notes": notes,
+    "validate_with_best": validate_with_best,
+    "load_dataset": load_dataset,
+    "dataset_filename": dataset_filename
 }
 
 ######## Set Seed ########
@@ -109,7 +116,12 @@ np.random.seed(seed)
 circol = pickle.load(open(circ_filename, "rb"))
 
 ######## Create Batched Dataset ########
-train_data, train_index, val_data = create_dataset(batch_size, loops, circol, train_percent)
+if load_dataset:
+    train_data, train_index, val_data = pickle.load(open(dataset_filename, "rb"))
+else:
+    dataset_filename = root_dir + date_str + "_" + str(max_run + 1) + "_dataset"  + ".p"
+    train_data, train_index, val_data = create_dataset(batch_size, loops, circol, train_percent)
+    pickle.dump((train_data, train_index, val_data), open(dataset_filename, "wb"))
 
 # print("train_data:", train_data.shape)
 # print("val_data:", val_data.shape)
@@ -205,6 +217,29 @@ fig.savefig(plot_filename)
 plt.show()
 
 ######## Validate Model ########
+print("Model Calls:", model.call_count)
+if validate_with_best:
+    # find filename of latest checkpoint
+    checkpoints = [filename for filename in os.listdir(root_dir) if (filename.endswith(".h5") and not filename.endswith("final.h5"))]
+    checkpoints.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
+    model_load_filename = root_dir + checkpoints[-1]
+
+    # load model weights
+    new_model = CutActorCritic(action_size, fc_layer_list)
+    image_shape = (circol.images[-1][0].shape[0], circol.images[-1][0].shape[1])
+    dummy = tf.zeros((1, image_shape[0], image_shape[1]))
+
+    # print("image_shape:", image_shape)
+    # print("dummy:", str(dummy))
+    
+    action_logits_c, values = new_model(dummy) # call model once to initialize weights
+    new_model.load_weights(model_load_filename)
+    print("Loaded Model Weights:", model_load_filename)
+
+    model = new_model
+
+print("Model Calls:", model.call_count)
+
 hist_filename = root_dir + date_str + "_" + str(max_run + 1) + "_hist" + ".txt"
 
 optimal_cuts, optimal_circuits_index = compute_best_cuts(circol)
@@ -222,7 +257,7 @@ plot_hist = [hist, hist_t, random_full]
 # plot multi-bar histogram using hist, random_hist, hist_t, random_hist_t in matplotlib
 colors = ['red', 'tan', 'lime']
 labels = ['Agent Validation Data', 'Agent Training Data', 'Random']
-plt.hist(plot_hist, bins=range(-1, max(random_full) + 3), color=colors, label=labels, density=True)
+res = plt.hist(plot_hist, bins=range(-1, max(random_full) + 3), color=colors, label=labels, density=True, align='left')
 plt.legend()
 plt.title("Histogram of Gate Cut Depth Difference")
 plt.xlabel("Gate Cut Depth Difference")
@@ -230,6 +265,18 @@ plt.ylabel("Percent")
 # show all x ticks
 plt.xticks(range(-1, max(random_full) + 3))
 
+# show percentage above each bar in histogram
+max = 0
+for i in range(len(res[0])):
+    for j in range(len(res[1]) - 1):
+        if res[0][i][j] != 0:
+            plt.text(res[1][j] + (-0.36 + 0.265 * i), res[0][i][j] + 0.01, str(round(res[0][i][j] * 100)) + "%", rotation=90)
+        
+        if res[0][i][j] > max:
+            max = res[0][i][j]
+
+# set y axis limit to max + text height
+plt.ylim(0, max + 0.1)
 fig = plt.gcf()
 fig.savefig(root_dir + date_str + "_" + str(max_run + 1) + "_hist" + ".png")
 plt.show()
