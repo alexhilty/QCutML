@@ -163,7 +163,7 @@ def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, 
 
     # quit(0)
 
-    episode_reward = tf.math.reduce_sum(rewards)
+    episode_reward = tf.math.reduce_sum(np.array(rewards) * 30 / circuit_batch.shape[0])
 
     return episode_reward
 
