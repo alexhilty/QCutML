@@ -76,6 +76,6 @@ def main2():
     # print(*map(lambda x: circol.circuits[x[0]][x[1]], child), sep = "\n")
 
 if __name__ == "__main__":
-    # main()
+    main()
 
     main2()
