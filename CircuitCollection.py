@@ -10,14 +10,20 @@ import numpy as np
 import operator as op
 import time
 import copy
+
+def unique_elem_it(iterator):
+    '''Returns a list of unique elements from an iterator (preserving order)'''
+
+    yield from dict.fromkeys(iterator)
     
 # defines collections of all derivative circuits from seed circuit
 class CircuitCollection:
     
-    def __init__(self, seed = None, num_qubits = 0, depth = None):
+    def __init__(self, seed = None, num_qubits = 0, depth = None, reps = None):
         self.seed = seed # seed gate list
         self.num_qubits = num_qubits # number of qubits in circuit
         self.depth = depth if depth != None else len(seed)
+        self.reps = reps if reps != None else list(np.ones(len(seed))) # number of times each gate is repeated
 
         # class internal globals
         self.circuits = [] # list of child circuits
@@ -42,24 +48,47 @@ class CircuitCollection:
     
     # Takes a set of gates and returns the corresponding index in circuits/q_circuits/q_transpiled
     def gates_to_index(self, gates = []):
-        n1 = len(gates) - (len(self.seed) - self.depth) - 1
+        n1 = int(round(len(gates) - (sum(self.reps) - self.depth) - 1))
         n2 = 0
 
         seed = copy.deepcopy(self.seed)
+        reps = copy.deepcopy(self.reps)
 
         for i in range(len(gates)):
             
             # compute number of circuits that have this number of gates starting with a specific gate
             # print(str(len(seed) - 1) + "! / " + str(len(seed) - 1 - (n1 - 1 - i)) + "!")
-            circ_num = m.factorial(len(seed) - 1) / m.factorial(len(seed) - (len(gates) - i))
+            # circ_num = m.factorial(len(seed) - 1) / m.factorial(len(seed) - (len(gates) - i))
+            n = sum(reps)
 
             gate_index = seed.index(gates[i])
 
-            # add to total index
-            n2 += circ_num * gate_index
+            # do some math (honestly surprised this works)
+            nfac = m.factorial(n - 1)
+            for j in range(gate_index, len(seed)):
+                nfac /= m.factorial(reps[j])
+            var_fac_sum = 0
+            for j in range(0, gate_index):
+                var_temp = 1
+                for k in range(0, gate_index):
+                    var_temp /= m.factorial(reps[k]) if k != j else m.factorial(reps[k] - 1)
+                var_fac_sum += var_temp
 
-            # remove gate from seed
-            seed.pop(gate_index)
+            circ_num = nfac * var_fac_sum
+
+            # print(round(circ_num))
+
+            # add to total index
+            n2 += round(circ_num)
+
+            # decrement reps
+            if reps[gate_index] > 1:
+                reps[gate_index] -= 1
+            else:
+                reps.pop(gate_index)
+                seed.pop(gate_index)
+
+            n -= 1
 
         return (n1, int(n2))
     
@@ -84,7 +113,7 @@ class CircuitCollection:
         n1, n2 = args[0][0], args[0][1]
         circuit = self.circuits[n1][n2]
 
-        image = np.zeros((len(self.seed), self.num_qubits)) # initialize image
+        image = np.zeros((sum(self.reps), self.num_qubits)) # initialize image
 
         # convert each gate to a column of the image
         for i, gate in enumerate(circuit):
@@ -100,11 +129,21 @@ class CircuitCollection:
     ####### USER FUNCTIONS #######
 
     def generate_circuits(self):
+        '''Generates all circuits of depth self.depth from seed circuit.
+           Remove all duplicate circuits (keeps first occurance in order)'''
+
+        # construct seed
+        seed = []
+        for i in range(len(self.seed)):
+            for j in range(int(self.reps[i])):
+                seed.append(self.seed[i])
+
         gen_start_time = time.time()
         # generate all circuit lists
         self.circuits = []
-        for i in range(len(self.seed) - self.depth + 1, len(self.seed) + 1):
-            self.circuits.append(list(itertools.permutations(self.seed, i)))
+        for i in range(len(seed) - self.depth + 1, len(seed) + 1):
+            it = unique_elem_it(itertools.permutations(seed, i))
+            self.circuits.append(list(it))
 
         self.generated_circuits = True
 
@@ -179,6 +218,7 @@ class CircuitCollection:
             print("convert_to_images: No Circuits Built!")
             return
 
+        # FIXME: why did I think this was good ? lol
         for i in range(len(self.circuits)):
             # get index of all circuits
             indecies = map(self.gates_to_index, self.circuits[i])
