@@ -3,34 +3,46 @@ import tensorflow as tf
 import numpy as np
 
 # defining agent/critic
-class CutActorCritic(tf.keras.Model):
+class Cutter(tf.keras.Model):
     '''Neural Network Model for Actor Critic Agent. Inherits from tf.keras.Model.'''
 
-    def __init__(self, num_actions: int, fc_layer_list: list, convolutional = (0, 0)):
+    def __init__(self, num_actions: int, layers_def: list = [('fc', 256), ('fc', 128), ('fc', 64)], transpose: bool = False):
         '''Initialize the Actor and Critic Model
         
         Defines the model layers using fc_layer_list (all fully connected layers)
+        The last layer of the actor and critic are pre-defined fully connected layers
 
         Parameters
         ------------
             num_actions: int
                 number of actions the agent can take
-            fc_layer_list: list<int>
-                list of number of hidden units for each desired fully connected layer
+            layers: list
+                list of tuples that define the layers (in order) of the model
+                fc -> fully connected -> layer size
+                conv -> convolutional -> window size
+                lstm -> long short term memory -> number of units
+                flatten -> flatten image -> no parameters
+            transpose: bool
+                whether to transpose the image before feeding it into the model
         '''
         super().__init__()
 
-        # if convolutional != (0, 0):
-            # self.conv = layers.Conv2D(convolutional[0], convolutional[1], activation="relu",)
-
-        self.flat = layers.Flatten() # start by flattening image
+        self.layers_list = []
         self.call_count = 0
+        self.num_actions = num_actions
+        self.transpose = transpose
+        self.layers_def = layers_def
 
-        # NOTE: for now use fully connected layers (like in tensorflow tutorial)
-        self.common_layers = []
-
-        for num_hidden_units in fc_layer_list:
-            self.common_layers.append(layers.Dense(num_hidden_units, activation="relu"))
+        # Define layers
+        for layer in layers_def:
+            if layer[0] == 'fc':
+                self.layers_list.append(layers.Dense(layer[1], activation='tanh'))
+            elif layer[0] == 'conv':
+                self.layers_list.append(layers.Conv2D(filters = 1, kernel_size = (layer[1][0], layer[1][1]), activation='relu', padding='valid')) #FIXME: add input_shape here?
+            elif layer[0] == 'lstm':
+                self.layers_list.append(layers.LSTM(layer[1], activation = 'relu'))
+            elif layer[0] == 'flatten':
+                self.layers_list.append(layers.Flatten())
 
         # NOTE: later maybe completely separate actor and critic networks
         self.actor = layers.Dense(num_actions) # NOTE: actor returns a probability distribution over actions)
@@ -49,10 +61,23 @@ class CutActorCritic(tf.keras.Model):
 
         self.call_count += 1
 
-        x = self.flat(inputs) # NOTE: flatten image for now (maybe later replace with convolutional layer)
+        if self.transpose:
+            x = tf.transpose(inputs, perm=[0, 2, 1]) # FIXME: i don't think correct for input to lstm, check this
+        else:
+            x = inputs
 
-        for layer in self.common_layers:
-            x = layer(x)
+        for i, layer in enumerate(self.layers_list):
+
+            if self.layers_def[i][0] == 'conv':
+                x = tf.expand_dims(x, axis=-1) # add channel dimension
+                # print(x.shape)
+                x = layer(x)
+                # print(x.shape)
+                x = tf.squeeze(x, axis=-1) # remove channel dimension
+            else:
+                x = layer(x)
+
+        # print(x.shape)
 
         return self.actor(x), self.critic(x)
     

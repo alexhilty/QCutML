@@ -168,7 +168,7 @@ def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, 
     return episode_reward
 
 # define training loop
-def train_loop(train_data, model, rando, env, critic_loss, optimizer, save_condition_func, window_size = 100, model_save_filename = None):
+def train_loop(train_data, model_list, env, critic_loss, optimizer, save_condition_func, window_size = 100, model_save_filename = None):
     '''Runs the training loop for the model.
     
     Parameters
@@ -176,48 +176,55 @@ def train_loop(train_data, model, rando, env, critic_loss, optimizer, save_condi
         save_condition_func: function
             function that takes the current moving average list and returns a boolean indicating whether to save the model'''
 
-    episode_rewards = []
-    random_rewards = []
-
+    rewards = []
+    averages = []
     moving_averages = []
-    save_checkpoint = 0
+    save_checkpoints = []
+
+    for j in range(len(model_list)):
+        rewards.append([])
+        averages.append(0)
+        moving_averages.append([])
+        save_checkpoints.append(0)
 
     t = tqdm.trange(len(train_data)) # for showing progress bar
     for i in t:
-        # run train step
-        episode_reward = int(train_step(train_data[i], model, env, critic_loss, optimizer, gamma=0.99))
-        random_reward = int(train_step(train_data[i], rando, env, critic_loss, optimizer, gamma=0.99))
+        for j in range(len(model_list)):
+            # print('j ----------------------:', j)
 
-        # store episode reward
-        episode_rewards.append(episode_reward)
-        random_rewards.append(random_reward)
+            # run train step
+            episode_reward = int(train_step(train_data[i], model_list[j], env, critic_loss, optimizer, gamma=0.99))
+            # print("episode_reward:", episode_reward)
 
-        # keep running average of episode rewards
-        running_average = statistics.mean(episode_rewards)
-        random_average = statistics.mean(random_rewards)
+            # store episode reward
+            rewards[j].append(episode_reward)
 
-        # calculate average of last 100 episodes
-        if i > window_size:
-            moving_average = statistics.mean(episode_rewards[i - 100:i])
-            random_moving_average = statistics.mean(random_rewards[i - 100:i])
-        else:
-            moving_average = running_average
-            random_moving_average = random_average
+            # keep running average of episode rewards
+            averages[j] = statistics.mean(rewards[j])
 
-        moving_averages.append(moving_average)
+            # calculate average of last 100 episodes
+            if i > window_size:
+                moving_average = statistics.mean(rewards[j][i - 100:i])
+            else:
+                moving_average = averages[j]
 
-        if save_condition_func(moving_averages, save_checkpoint, window_size):
-            # print(model_save_filename.split(".h5")[0] + "_ " + str(i) + ".h5")
-            model.save_weights(model_save_filename.split(".h5")[0] + "_" + str(i) + ".h5")
-            save_checkpoint = i
+            moving_averages[j].append(moving_average)
+            # print(moving_averages)
+            # print(rewards)
+
+            if save_condition_func(moving_averages[j], save_checkpoints[j], window_size):
+                # print(model_save_filename.split(".h5")[0] + "_ " + str(i) + ".h5")
+                model_list[j].save_weights(model_save_filename.split(".h5")[0] + "_j" + str(j) + "_i" + str(i) + ".h5")
+                save_checkpoints[j] = i
 
         # update tqdm (progress bar)
-        t.set_description("Checkpoint: {:05}, Running average: {:04.2f}, Moving average: {:04.2f}".format(save_checkpoint, running_average, moving_average))
+        t.set_description("Checkpoint: {:05}, Running average: {:04.2f}, Moving average: {:04.2f}".format(save_checkpoints[0], averages[0], moving_averages[0][-1]))
 
     # save model
-    model.save_weights(model_save_filename.split(".h5")[0] + "_final.h5")
+    for j in range(len(model_list)):
+        model_list[j].save_weights(model_save_filename.split(".h5")[0] + "_j" + str(j) + "_final.h5")
 
-    return episode_rewards, random_rewards, running_average, random_average
+    return rewards, averages, moving_averages
 
 # function for computing best cuts on top level circuits
 def compute_best_cuts(circol: CircuitCollection):

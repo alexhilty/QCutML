@@ -13,7 +13,7 @@ import os
 import csv
 
 # Custom Imports
-from model.ActorCritic import CutActorCritic, RandomSelector
+from model.ActorCritic import Cutter, RandomSelector
 from model.Utils import *
 from model.Environments import CutEnvironment
 
@@ -22,7 +22,7 @@ def run_model(
 
     seed = 324, # seed for numpy and tensorflow
 
-    circ_filename = "../../qcircml_code/data/circol_test.p", # filename of circuit collection
+    circ_filename = "../../qcircml_code/data/circol_base_4qubits.p", # filename of circuit collection
 
     # batch parameters
     load_dataset = False, # load dataset from file
@@ -33,13 +33,14 @@ def run_model(
 
     # model parameters
     action_size = 6, # number of actions the agent can take
-    fc_layer_list = [1024, 256, 128], # list of number of hidden units for each desired fully connected layer
+    layer_lists = [[('flatten', None), ('fc', 1024), ('fc', 256), ('fc', 128)]], # list of lists of number of hidden units for each desired fully connected layer (one list for each model)
 
     learning_rate = 0.01, # learning rate for optimizer# define critic loss function
     load = False, # load model weights from file
-    model_load_filename = "../../qcircml_code/data_07282023_2/07282023_14_weights.h5", # filename of model weights
+    model_load_filenames = ["../../qcircml_code/data_07282023_2/07282023_14_weights.h5"], # filename of model weights, must be same size as layer_lists
+    transpose = [False], # whether to transpose the image before feeding it into the model, must be same size as layer_lists
 
-    validate_with_best = False, # validate with best checkpoint
+    validate_with_best = False, # validate with best checkpoint, FIXME: functionality broken with multiple models
 
     # training parameters
     window_size = 100, # size of window for moving average
@@ -59,11 +60,12 @@ def run_model(
     critic_loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM)
 
     def model_save_condition(moving_averages, last_checkpoint, window_size): # function to determine when to save model
+        # print(len(moving_averages), last_checkpoint, window_size)
         if len(moving_averages) < window_size:
             return False
         
         if len(moving_averages) == window_size:
-            # print("First checkpoint:", moving_averages[-1])
+            # print("First checkpoint:", moving_averages)
             return True
         
         if moving_averages[-1] > moving_averages[last_checkpoint] + 4:
@@ -98,12 +100,12 @@ def run_model(
         "loops": loops,
         "train_percent": train_percent,
         "action_size": action_size,
-        "fc_layer_list": fc_layer_list,
+        "layer_list": layer_lists,
         "learning_rate": learning_rate,
         "optimizer": type(optimizer),
         "critic_loss": type(critic_loss),
         "load_model": load,
-        "model_load_filename": model_load_filename,
+        "model_load_filename": model_load_filenames,
         "window_size": window_size,
         "save": save,
         "root_dir": root_dir,
@@ -135,8 +137,20 @@ def run_model(
     ######## Create Environment and Model ########
 
     env = CutEnvironment(circol) # create cut environment
-    model = CutActorCritic(action_size, fc_layer_list) # create model
+    models = []
+
+    if len(transpose) != len(layer_lists) and transpose[0] == False: # default transpose to false
+        transpose = [transpose[0]] * len(layer_lists)
+    elif len(transpose) != len(layer_lists):
+        raise Exception("Transpose must be same size as layer_lists")
+
+    for i in range(len(layer_lists)):
+        # print("layer_list:", layer_list)
+        model = Cutter(action_size, layer_lists[i], transpose[i]) # create model
+        models.append(model)
+
     rando = RandomSelector(action_size)
+    models.append(rando)
 
     if load:
         image_shape = (circol.images[-1][0].shape[0], circol.images[-1][0].shape[1])
@@ -145,22 +159,9 @@ def run_model(
         # print("image_shape:", image_shape)
         # print("dummy:", str(dummy))
         
-        action_logits_c, values = model(dummy) # call model once to initialize weights
-        model.load_weights(model_load_filename)
-
-    # test train step
-
-    # tf.summary.trace_on(graph=True, profiler=True)
-    # episode_reward = int(train_step(train_data[0], model, env, critic_loss, optimizer, gamma=0.99))
-    # writer = tf.summary.create_file_writer("../qcircml_code/data/logs")
-    # with writer.as_default():
-    #     tf.summary.trace_export(name="my_func_trace", step=0, profiler_outdir="../qcircml_code/data/logs")
-    # episode_reward2 = int(train_step(train_data[1], model, env, critic_loss, optimizer, gamma=0.99))
-
-    # print("episode_reward:", episode_reward)
-    # print("episode_reward2:", episode_reward2)
-
-    # quit()
+        for i in range(len(models)):
+            action_logits_c, values = models[i](dummy)
+            model[i].load_weights(model_load_filenames[i])
 
     ######## Save Parameters ########
     parameters_filename = root_dir + date_str + "_" + str(max_run + 1) + "_parameters"  + ".txt"
@@ -174,9 +175,12 @@ def run_model(
     parameters_pkl_filename = root_dir + date_str + "_" + str(max_run + 1) + "_parameters"  + ".p"
     pickle.dump(parameters, open(parameters_pkl_filename, "wb"))
 
-    ######## Train Model ########
-    model_save_filename = root_dir + date_str + "_" + str(max_run + 1) + "_weights" + ".h5"
-    episode_rewards, random_rewards, running_average, random_average = train_loop(train_data, model, rando, env, critic_loss, optimizer, model_save_condition, window_size, model_save_filename)
+    ######## Train Models ########
+    if not os.path.exists(root_dir + "checkpoints/"):
+        os.mkdir(root_dir + "checkpoints/")
+
+    model_save_filename = root_dir + "checkpoints/" + date_str + "_" + str(max_run + 1) + "_weights" + ".h5"
+    rewards, averages, moving_averages = train_loop(train_data, models, env, critic_loss, optimizer, model_save_condition, window_size, model_save_filename)
 
     ######## Save Data ########
     csv_filename = root_dir + date_str + "_" + str(max_run + 1) + "_data" + ".csv"
@@ -184,38 +188,73 @@ def run_model(
     # put all data in one csv
     with open(csv_filename, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(["Actor Average", running_average])
-        writer.writerow(["Random Average", random_average])
-        writer.writerow(["Episode Rewards", "Random Rewards"])
 
-        for i in range(len(episode_rewards)):
-            writer.writerow([episode_rewards[i], random_rewards[i]])
+        # save model types
+        for j in range(len(models)):
+            writer.writerow(["Model " + str(j), str(models[j]), "Random" if j == len(layer_lists) else str(layer_lists[j])])
+
+        # save averages
+        for j in range(len(models)):
+            writer.writerow(["Average " + str(j), averages[j]])
+
+        writer.writerow([])
+
+        # save episode rewards
+        writer.writerow(["Episode Rewards " + str(i) for i in range(len(models))])
+        for i in range(len(rewards[0])):
+            writer.writerow([rewards[j][i] for j in range(len(models))])
 
     ######## Plot Data ########
-    plot_filename = root_dir + date_str + "_" + str(max_run + 1) + "_plot" + ".png"
+    # make a plot for each model, and one for all models (except random)
+    for j in range(len(models) - 1):
+        plot_filename = root_dir + date_str + "_" + str(max_run + 1) + "_plot_j" + str(j) + ".png"
 
-    print()
-    # print("Possible Rewards:",list(set(episode_rewards)))
-    # ep_avg = statistics.mean(list(set(episode_rewards)))
-    # print("Average of Possible Rewards:", ep_avg)
+        plt.cla()
+        # plot episode rewards
+        plt.title("Episode Rewards for Model " + str(j))
+        plt.xlabel("Episode")
+        plt.ylabel("Episode Reward")
+
+        # plot moving average
+        # moving_average = []
+        # moving_avg_random = []
+        # for i in range(len(rewards[j]) - 1):
+        #     moving_average.append(statistics.mean(rewards[j][max(0, i - window_size):i + 1]))
+        #     moving_avg_random.append(statistics.mean(rewards[j][max(0, i - window_size):i + 1]))
+
+        plt.plot(moving_averages[j], color='k', label='Agent')
+        plt.plot(moving_averages[-1], color='b', label='Random')
+        # show horizontal line at random average
+        plt.axhline(y=averages[-1], color='r', linestyle='-', label='Random Average')
+        plt.legend()
+
+        fig = plt.gcf()
+        fig.savefig(plot_filename)
+        if show_plot:
+            plt.show()
+
+    # plot all models together
+    plot_filename = root_dir + date_str + "_" + str(max_run + 1) + "_plot_all" + ".png"
+
     plt.cla()
     # plot episode rewards
-    plt.title("Episode Rewards")
-    # plt.plot(episode_rewards)
+    plt.title("Episode Rewards for all Models")
     plt.xlabel("Episode")
     plt.ylabel("Episode Reward")
 
     # plot moving average
-    moving_average = []
-    moving_avg_random = []
-    for i in range(len(episode_rewards) - 1):
-        moving_average.append(statistics.mean(episode_rewards[max(0, i - window_size):i + 1]))
-        moving_avg_random.append(statistics.mean(random_rewards[max(0, i - window_size):i + 1]))
+    # moving_average = []
+    # moving_avg_random = []
+    # for i in range(len(rewards[j]) - 1):
+    #     moving_average.append(statistics.mean(rewards[j][max(0, i - window_size):i + 1]))
+    #     moving_avg_random.append(statistics.mean(rewards[j][max(0, i - window_size):i + 1]))
 
-    plt.plot(moving_average, color='k', label='Agent')
-    plt.plot(moving_avg_random, color='b', label='Random')
-    # show horizontal line at average
-    plt.axhline(y=random_average, color='r', linestyle='-', label='Random Average')
+    for j in range(len(models) - 1):
+        plt.plot(moving_averages[j], label='Agent ' + str(j))
+
+    plt.plot(moving_averages[-1], color='b', label='Random')
+    # show horizontal line at random average
+    plt.axhline(y=averages[-1], color='r', linestyle='-', label='Random Average')
     plt.legend()
 
     fig = plt.gcf()
@@ -224,48 +263,92 @@ def run_model(
         plt.show()
 
     ######## Validate Model ########
-    # print("Model Calls:", model.call_count)
-    if validate_with_best:
-        # find filename of latest checkpoint
-        checkpoints = [filename for filename in os.listdir(root_dir) if (filename.endswith(".h5") and not filename.endswith("final.h5"))]
-        checkpoints.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
-        model_load_filename = root_dir + checkpoints[-1]
+    # # print("Model Calls:", model.call_count)
+    # if validate_with_best:
+    #     # find filename of latest checkpoint
+    #     checkpoints = [filename for filename in os.listdir(root_dir) if (filename.endswith(".h5") and not filename.endswith("final.h5"))]
+    #     checkpoints.sort(key=lambda x: int(x.split("_")[-1].split(".")[0]))
+    #     model_load_filename = root_dir + checkpoints[-1]
 
-        # load model weights
-        new_model = CutActorCritic(action_size, fc_layer_list)
-        image_shape = (circol.images[-1][0].shape[0], circol.images[-1][0].shape[1])
-        dummy = tf.zeros((1, image_shape[0], image_shape[1]))
+    #     # load model weights
+    #     new_model = Cutter(action_size, layers_)
+    #     image_shape = (circol.images[-1][0].shape[0], circol.images[-1][0].shape[1])
+    #     dummy = tf.zeros((1, image_shape[0], image_shape[1]))
 
-        # print("image_shape:", image_shape)
-        # print("dummy:", str(dummy))
+    #     # print("image_shape:", image_shape)
+    #     # print("dummy:", str(dummy))
         
-        action_logits_c, values = new_model(dummy) # call model once to initialize weights
-        new_model.load_weights(model_load_filename)
-        print("Loaded Model Weights:", model_load_filename)
+    #     action_logits_c, values = new_model(dummy) # call model once to initialize weights
+    #     new_model.load_weights(model_load_filename)
+    #     print("Loaded Model Weights:", model_load_filename)
 
-        model = new_model
+    #     model = new_model
 
     # print("Model Calls:", model.call_count)
 
-    hist_filename = root_dir + date_str + "_" + str(max_run + 1) + "_hist" + ".txt"
+    # hist_filename = root_dir + date_str + "_" + str(max_run + 1) + "_hist" + ".txt"
 
+    # compute the best cuts
     optimal_cuts, optimal_circuits_index = compute_best_cuts(circol)
-    chosen_cuts, hist = validation2(val_data, model, env, optimal_cuts)
-    random_cuts, random_hist = validation2(val_data, rando, env, optimal_cuts)
 
-    chosen_cuts_t, hist_t = validation2(train_index, model, env, optimal_cuts)
-    random_cuts_t, random_hist_t = validation2(train_index, rando, env, optimal_cuts)
+    # validate all the models on validation and training data
+    chosen_cut_list_v = []
+    hist_list_v = []
+    chosen_cut_list_t = []
+    hist_list_t = []
+    for i in range(len(models)):
+        chosen_cuts, hist = validation2(val_data, models[i], env, optimal_cuts)
+        chosen_cuts_t, hist_t = validation2(train_index, models[i], env, optimal_cuts)
+
+        chosen_cut_list_v.append(chosen_cuts)
+        hist_list_v.append(hist)
+        chosen_cut_list_t.append(chosen_cuts_t)
+        hist_list_t.append(hist_t)
 
     # # write hist to file and print results
-    # with open(hist_filename, 'w') as f:
+
+    random_full = np.concatenate((hist_list_v[-1], hist_list_t[-1]))
+    # create one histogram for each model and one for all models
+    for k in range(len(models) - 1):
+        plt.cla()
+
+        plot_hist = [hist_list_v[k], hist_list_t[k], random_full]
+        # plot multi-bar histogram using hist, random_hist, hist_t, random_hist_t in matplotlib
+        colors = ['red', 'tan', 'lime']
+        labels = ['Agent ' + str(k) +  ' Validation Data', 'Agent ' + str(k) + ' Training Data', 'Random']
+        res = plt.hist(plot_hist, bins=range(-1, max(random_full) + 3), color=colors, label=labels, density=True, align='left')
+        plt.legend()
+        plt.title("Histogram of Gate Cut Depth Difference")
+        plt.xlabel("Gate Cut Depth Difference")
+        plt.ylabel("Percent")
+        # show all x ticks
+        plt.xticks(range(-1, max(random_full) + 3))
+
+        # show percentage above each bar in histogram
+        max_n = 0
+        for i in range(len(res[0])):
+            for j in range(len(res[1]) - 1):
+                if res[0][i][j] != 0:
+                    plt.text(res[1][j] + (-0.36 + 0.265 * i), res[0][i][j] + 0.012, str(round(res[0][i][j] * 100)) + "%", rotation=90)
+                
+                if res[0][i][j] > max_n:
+                    max_n = res[0][i][j]
+
+        # set y axis limit to max + text height
+        plt.ylim(0, max_n + 0.1)
+        fig = plt.gcf()
+        fig.savefig(root_dir + date_str + "_" + str(max_run + 1) + "_hist_j" + str(k) + ".png")
+        if show_plot:
+            plt.show()
+
+    # plot all models together
     plt.cla()
 
-    random_full = np.concatenate((random_hist, random_hist_t))
-    plot_hist = [hist, hist_t, random_full]
-    # plot multi-bar histogram using hist, random_hist, hist_t, random_hist_t in matplotlib
-    colors = ['red', 'tan', 'lime']
-    labels = ['Agent Validation Data', 'Agent Training Data', 'Random']
-    res = plt.hist(plot_hist, bins=range(-1, max(random_full) + 3), color=colors, label=labels, density=True, align='left')
+    plot_hist = [np.concatenate((hist_list_v[j], hist_list_t[j])) for j in range(len(models) - 1)] + [random_full]
+
+    # colors = ['red', 'tan', 'lime']
+    labels = ['Agent ' + str(j) for j in range(len(models) - 1)] + ['Random']
+    res = plt.hist(plot_hist, bins=range(-1, max(random_full) + 3), label=labels, density=True, align='left')
     plt.legend()
     plt.title("Histogram of Gate Cut Depth Difference")
     plt.xlabel("Gate Cut Depth Difference")
@@ -278,7 +361,7 @@ def run_model(
     for i in range(len(res[0])):
         for j in range(len(res[1]) - 1):
             if res[0][i][j] != 0:
-                plt.text(res[1][j] + (-0.36 + 0.265 * i), res[0][i][j] + 0.01, str(round(res[0][i][j] * 100)) + "%", rotation=90)
+                plt.text(res[1][j] + (-0.33 + 0.45 * i), res[0][i][j] + 0.03, str(round(res[0][i][j] * 100)) + "%", rotation=90)
             
             if res[0][i][j] > max_n:
                 max_n = res[0][i][j]
@@ -286,6 +369,6 @@ def run_model(
     # set y axis limit to max + text height
     plt.ylim(0, max_n + 0.1)
     fig = plt.gcf()
-    fig.savefig(root_dir + date_str + "_" + str(max_run + 1) + "_hist" + ".png")
+    fig.savefig(root_dir + date_str + "_" + str(max_run + 1) + "_hist_all" + ".png")
     if show_plot:
         plt.show()
