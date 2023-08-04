@@ -66,14 +66,14 @@ for value in values:
     if sweep_arg2 == "None":
         # modify notes
         param_dict["notes"] = notes + " " + sweep_arg + ": " + str(value) + "."
-        print("\n",param_dict["notes"])
+        print("\n" + param_dict["notes"])
         param_dict[sweep_arg] = value
         run_model(**param_dict)
     else:
         for value2 in values2:
             # modify notes
             param_dict["notes"] = notes + " " + sweep_arg + ": " + str(value) + ", " + sweep_arg2 + ": " + str(value2) + "."
-            print("\n",param_dict["notes"])
+            print("\n" + param_dict["notes"])
             param_dict[sweep_arg] = value
             param_dict[sweep_arg2] = value2
             run_model(**param_dict)

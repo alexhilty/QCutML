@@ -63,7 +63,7 @@ class Cutter(tf.keras.Model):
         self.call_count += 1
 
         if self.transpose:
-            x = tf.transpose(inputs, perm=[0, 2, 1]) # FIXME: i don't think correct for input to lstm, check this
+            x = tf.transpose(inputs, perm=[0, 2, 1]) # NOTE: later maybe add "gate_grouping" functionality
         else:
             x = inputs
 
@@ -71,9 +71,7 @@ class Cutter(tf.keras.Model):
 
             if self.layers_def[i][0] == 'conv':
                 x = tf.expand_dims(x, axis=-1) # add channel dimension
-                # print(x.shape)
                 x = layer(x)
-                # print(x.shape)
                 x = tf.squeeze(x, axis=-1) # remove channel dimension
             else:
                 x = layer(x)
@@ -92,19 +90,13 @@ class RandomSelector(tf.keras.Model):
 
     def call(self, inputs: tf.Tensor):
 
-        # print(tf.random.uniform(shape=(inputs.shape[0], self.num_actions)))
-
         # create a tensor with number 1 in a random position for each batch
-        # print(inputs.shape)
 
         self.call_count += 1
 
         uni = tf.repeat([1/inputs.shape[2]], inputs.shape[2])
         uni = tf.repeat([uni], repeats = [inputs.shape[0]], axis = 0)
 
-        # print(uni)
-
-        # quit()
         return uni, tf.ones(shape=(inputs.shape[0], 1))
     
 # an actor that will always pick the same one

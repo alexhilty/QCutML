@@ -6,6 +6,10 @@ import copy
 import tqdm
 import statistics
 
+################################################################################################
+# FUNCTIONS FOR TRAINING
+################################################################################################
+
 # function for running one episode
 # one episode consists of performing one cut on a batch of circuits
 # returns the total reward for the episode
@@ -36,7 +40,6 @@ def run_episode(circuit_batch, model, env: CutEnvironment):
 
     # compute all images in batch
     images = env.convert_to_images_c(circuit_batch)
-
 
     # run model on images
     action_logits_c, values = model(images)
@@ -82,37 +85,8 @@ def compute_loss(action_probs: tf.Tensor, values: tf.Tensor, returns: tf.Tensor,
 
     return actor_loss + critic_loss
 
-def create_dataset(batch_size: int, loops: int, circol: CircuitCollection, training_percent: float = 0.8):
-    '''Creates a dataset of circuits to train on'''
-    
-    train_batch = []
-    # validation_batch = []
-    index_list_master = [[len(circol.circuits) - 1, i] for i in range(0, len(circol.circuits[-1])) ] # create list of all possible circuit indexes
-
-    # shuffle list
-    np.random.shuffle(index_list_master)
-
-    # put training_percent% of the data in the training set
-    train_index = index_list_master[:int(len(index_list_master) * training_percent)]
-    validation_index = index_list_master[int(len(index_list_master) * training_percent):]
-
-    for j in range(loops):
-
-        ###### train set
-        t = copy.deepcopy(train_index)
-        np.random.shuffle(t) # shuffle list
-        train_batch_temp = [t[i:i + batch_size] for i in range(0, len(t), batch_size)]
-
-        # remove last batch if it is not full
-        if len(train_batch_temp[-1]) != batch_size:
-            train_batch_temp.pop(-1)
-
-        train_batch.extend(train_batch_temp)
-
-    return tf.convert_to_tensor(train_batch, tf.int32), tf.convert_to_tensor(train_index, tf.int32), tf.convert_to_tensor(validation_index, tf.int32)
-
 # define training step
-@tf.function # compiles function into tensorflow graph for faster execution # FIXME: doesn't train with this enabled for some reason
+@tf.function # compiles function into tensorflow graph for faster execution # NOTE: sometimes doesn't train properly with this enabled
 def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, optimizer: tf.keras.optimizers.Optimizer, gamma: float) -> tf.Tensor:
     '''Runs a model training step'''
 
@@ -134,7 +108,6 @@ def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, 
         loss = compute_loss(action_probs, values, returns, critic_loss_func)
 
     # compute the gradients from the loss
-    # print(model.trainable_variables)
     grads = tape.gradient(loss, model.trainable_variables)
 
     # apply the gradients to the model's parameters
@@ -199,6 +172,43 @@ def train_loop(train_data, model_list, env, critic_loss, optimizer, save_conditi
         model_list[j].save_weights(model_save_filename.split(".h5")[0] + "_j" + str(j) + "_final.h5")
 
     return rewards, averages, moving_averages
+
+################################################################################################
+# FUNCTIONS FOR DATASET CREATION
+################################################################################################
+
+def create_dataset(batch_size: int, loops: int, circol: CircuitCollection, training_percent: float = 0.8):
+    '''Creates a dataset of circuits to train on'''
+    
+    train_batch = []
+    # validation_batch = []
+    index_list_master = [[len(circol.circuits) - 1, i] for i in range(0, len(circol.circuits[-1])) ] # create list of all possible circuit indexes
+
+    # shuffle list
+    np.random.shuffle(index_list_master)
+
+    # put training_percent% of the data in the training set
+    train_index = index_list_master[:int(len(index_list_master) * training_percent)]
+    validation_index = index_list_master[int(len(index_list_master) * training_percent):]
+
+    for j in range(loops):
+
+        ###### train set
+        t = copy.deepcopy(train_index)
+        np.random.shuffle(t) # shuffle list
+        train_batch_temp = [t[i:i + batch_size] for i in range(0, len(t), batch_size)]
+
+        # remove last batch if it is not full
+        if len(train_batch_temp[-1]) != batch_size:
+            train_batch_temp.pop(-1)
+
+        train_batch.extend(train_batch_temp)
+
+    return tf.convert_to_tensor(train_batch, tf.int32), tf.convert_to_tensor(train_index, tf.int32), tf.convert_to_tensor(validation_index, tf.int32)
+
+################################################################################################
+# FUNCTIONS FOR VALIDATION
+################################################################################################
 
 # function for computing best cuts on top level circuits
 def compute_best_cuts(circol: CircuitCollection):
