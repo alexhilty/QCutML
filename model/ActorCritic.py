@@ -48,6 +48,7 @@ class Cutter(tf.keras.Model):
         self.actor = layers.Dense(num_actions) # NOTE: actor returns a probability distribution over actions)
         self.critic = layers.Dense(1)
 
+    # @tf.function
     def call(self, inputs: tf.Tensor):
         '''Forward pass of the model
 

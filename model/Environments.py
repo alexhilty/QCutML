@@ -68,6 +68,7 @@ class CutEnvironment:
         return rewards, depths#, self.get_image()
     
     # wrapper for use as tensorflow function
+    # @tf.function
     def cut(self, circuit_batch: tf.Tensor, actions: tf.Tensor):
         '''See cut_numpy() for details.'''
 

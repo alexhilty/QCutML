@@ -37,7 +37,6 @@ def run_episode(circuit_batch, model, env: CutEnvironment):
     # compute all images in batch
     images = env.convert_to_images_c(circuit_batch)
 
-    # print("images: " + str(images))
 
     # run model on images
     action_logits_c, values = model(images)
@@ -51,17 +50,6 @@ def run_episode(circuit_batch, model, env: CutEnvironment):
     # apply action to environment to get next state and reward
     # FIXME: later get images here too
     rewards, depths = env.cut(circuit_batch, action)
-
-    # print
-    # print("action_logits_c: " + str(action_logits_c))
-    # print("action: " + str(action))
-    # print("action_probs_c: " + str(action_probs_c))
-
-    # print("\naction_probs: " + str(action_probs))
-    # print("rewards: " + str(rewards))
-    # print("values: " + str(values))
-    # print("images: " + str(images))
-    # print()
 
     return action_probs, values, rewards
 
@@ -121,23 +109,14 @@ def create_dataset(batch_size: int, loops: int, circol: CircuitCollection, train
 
         train_batch.extend(train_batch_temp)
 
-        # ###### validation set
-        # v = copy.deepcopy(validation_index)
-        # np.random.shuffle(v) # shuffle list
-        # validation_batch_temp = [v[i:i + batch_size] for i in range(0, len(v), batch_size)]
-
-        # # remove last batch if it is not full
-        # if len(validation_batch_temp[-1]) != batch_size:
-        #     validation_batch_temp.pop(-1)
-
-        # validation_batch.extend(validation_batch_temp)
-
     return tf.convert_to_tensor(train_batch, tf.int32), tf.convert_to_tensor(train_index, tf.int32), tf.convert_to_tensor(validation_index, tf.int32)
 
 # define training step
-# @tf.function # compiles function into tensorflow graph for faster execution # FIXME: doesn't train with this enabled for some reason
+@tf.function # compiles function into tensorflow graph for faster execution # FIXME: doesn't train with this enabled for some reason
 def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, optimizer: tf.keras.optimizers.Optimizer, gamma: float) -> tf.Tensor:
     '''Runs a model training step'''
+
+    print("Tracing train_step")
 
     with tf.GradientTape() as tape:
 
@@ -161,9 +140,8 @@ def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, 
     # apply the gradients to the model's parameters
     optimizer.apply_gradients(zip(grads, model.trainable_variables))
 
-    # quit(0)
-
-    episode_reward = tf.math.reduce_sum(np.array(rewards) * 30 / circuit_batch.shape[0])
+    # episode_reward = tf.math.reduce_sum(np.array(rewards) * 30 / circuit_batch.shape[0])
+    episode_reward = tf.math.reduce_sum(tf.math.scalar_mul(30 / circuit_batch.shape[0], rewards))
 
     return episode_reward
 
@@ -192,9 +170,8 @@ def train_loop(train_data, model_list, env, critic_loss, optimizer, save_conditi
         for j in range(len(model_list)):
             # print('j ----------------------:', j)
 
-            # run train step
+            # run training step
             episode_reward = int(train_step(train_data[i], model_list[j], env, critic_loss, optimizer, gamma=0.99))
-            # print("episode_reward:", episode_reward)
 
             # store episode reward
             rewards[j].append(episode_reward)
@@ -209,11 +186,8 @@ def train_loop(train_data, model_list, env, critic_loss, optimizer, save_conditi
                 moving_average = averages[j]
 
             moving_averages[j].append(moving_average)
-            # print(moving_averages)
-            # print(rewards)
 
             if save_condition_func(moving_averages[j], save_checkpoints[j], window_size):
-                # print(model_save_filename.split(".h5")[0] + "_ " + str(i) + ".h5")
                 model_list[j].save_weights(model_save_filename.split(".h5")[0] + "_j" + str(j) + "_i" + str(i) + ".h5")
                 save_checkpoints[j] = i
 
@@ -261,33 +235,6 @@ def compute_best_cuts(circol: CircuitCollection):
 
     return optimal_cuts, optimal_circuits
 
-# # # define validation loop
-# def validation(val_data, model, env, best_cuts):
-#     '''best_cuts is a list of the indecies of the best cuts for every circuit'''
-#     chosen_cuts = []
-#     hist = {"correct": 0, "incorrect": 0}
-
-#     # convert batch to images
-#     images = env.convert_to_images_c(val_data)
-
-#     # sample action from model
-#     action_logits_c, values = model(images)
-#     action = tf.random.categorical(action_logits_c, 1).numpy()
-
-#     for j in range(len(action)):
-#         # store chosen cut
-#         chosen_cuts.append(action[j][0])
-
-#         # compare with best cut
-#         best = best_cuts[val_data[j][1]]
-
-#         if chosen_cuts[-1] in best:
-#             hist["correct"] += 1
-#         else:
-#             hist["incorrect"] += 1
-
-#     return chosen_cuts, hist
-
 # another version of validation that gets more nuanced histogram data
 def validation2(val_indexes, model, env, optimal_cuts):
     hist = {}
@@ -304,13 +251,10 @@ def validation2(val_indexes, model, env, optimal_cuts):
     for i in range(len(val_indexes)):
         opt_cuts_temp.append(optimal_cuts[val_indexes[i][1]][0])
 
-    # print("opt_cuts_temp:", opt_cuts_temp)
     opt_cuts_temp = tf.convert_to_tensor(opt_cuts_temp, tf.int32)
     # transpose
     opt_cuts_temp = tf.expand_dims(opt_cuts_temp, 0)
     opt_cuts_temp = tf.transpose(opt_cuts_temp)
-
-    # print("opt_cuts_temp:", opt_cuts_temp)
 
     # cut circuits
     rewards, depths = env.cut(val_indexes, action) # cut with chosen cuts

@@ -101,6 +101,7 @@ def run_model(
         "train_percent": train_percent,
         "action_size": action_size,
         "layer_list": layer_lists,
+        "transpose": transpose,
         "learning_rate": learning_rate,
         "optimizer": type(optimizer),
         "critic_loss": type(critic_loss),
