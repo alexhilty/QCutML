@@ -86,11 +86,11 @@ def compute_loss(action_probs: tf.Tensor, values: tf.Tensor, returns: tf.Tensor,
     return actor_loss + critic_loss
 
 # define training step
-@tf.function # compiles function into tensorflow graph for faster execution # NOTE: sometimes doesn't train properly with this enabled
+# @tf.function # compiles function into tensorflow graph for faster execution # NOTE: sometimes doesn't train properly with this enabled
 def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, optimizer: tf.keras.optimizers.Optimizer, gamma: float) -> tf.Tensor:
     '''Runs a model training step'''
 
-    print("Tracing train_step")
+    # print("Tracing train_step")
 
     with tf.GradientTape() as tape:
 
@@ -119,7 +119,7 @@ def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, 
     return episode_reward
 
 # define training loop
-def train_loop(train_data, model_list, env, critic_loss, optimizer, save_condition_func, window_size = 100, model_save_filename = None):
+def train_loop(train_data, model_list, env, critic_loss, optimizer, save_condition_func, window_size = 100, model_save_filename = None, tf_function = True):
     '''Runs the training loop for the model.
     
     Parameters
@@ -132,11 +132,18 @@ def train_loop(train_data, model_list, env, critic_loss, optimizer, save_conditi
     moving_averages = []
     save_checkpoints = []
 
+    if tf_function:
+        functions = []
+
     for j in range(len(model_list)):
         rewards.append([])
         averages.append(0)
         moving_averages.append([])
         save_checkpoints.append(0)
+
+        # compile train_step function into tensorflow graph for faster execution
+        if tf_function:
+            functions.append(tf.function(train_step)) # make one for each model to avoid graph recompilation
 
     t = tqdm.trange(len(train_data)) # for showing progress bar
     for i in t:
@@ -144,7 +151,10 @@ def train_loop(train_data, model_list, env, critic_loss, optimizer, save_conditi
             # print('j ----------------------:', j)
 
             # run training step
-            episode_reward = int(train_step(train_data[i], model_list[j], env, critic_loss, optimizer, gamma=0.99))
+            if tf_function:
+                episode_reward = int(functions[j](train_data[i], model_list[j], env, critic_loss, optimizer, gamma=0.99))
+            else:
+                episode_reward = int(train_step(train_data[i], model_list[j], env, critic_loss, optimizer, gamma=0.99))
 
             # store episode reward
             rewards[j].append(episode_reward)

@@ -36,7 +36,7 @@ class Cutter(tf.keras.Model):
         # Define layers
         for layer in layers_def:
             if layer[0] == 'fc':
-                self.layers_list.append(layers.Dense(layer[1], activation='tanh'))
+                self.layers_list.append(layers.Dense(layer[1], activation='relu'))
             elif layer[0] == 'conv':
                 self.layers_list.append(layers.Conv2D(filters = 1, kernel_size = (layer[1][0], layer[1][1]), activation='relu', padding='valid')) #FIXME: add input_shape here?
             elif layer[0] == 'lstm':
@@ -75,8 +75,6 @@ class Cutter(tf.keras.Model):
                 x = tf.squeeze(x, axis=-1) # remove channel dimension
             else:
                 x = layer(x)
-
-        # print(x.shape)
 
         return self.actor(x), self.critic(x)
     

@@ -44,6 +44,7 @@ def run_model(
 
     # training parameters
     window_size = 100, # size of window for moving average
+    tf_function = True, # whether to use tf.function to speed up training
 
     # saving parameters
     save = True, # save data to file
@@ -108,6 +109,7 @@ def run_model(
         "load_model": load,
         "model_load_filename": model_load_filenames,
         "window_size": window_size,
+        "tf_function": tf_function,
         "save": save,
         "root_dir": root_dir,
         "date_str": date_str,
@@ -181,7 +183,7 @@ def run_model(
         os.mkdir(root_dir + "checkpoints/")
 
     model_save_filename = root_dir + "checkpoints/" + date_str + "_" + str(max_run + 1) + "_weights" + ".h5"
-    rewards, averages, moving_averages = train_loop(train_data, models, env, critic_loss, optimizer, model_save_condition, window_size, model_save_filename)
+    rewards, averages, moving_averages = train_loop(train_data, models, env, critic_loss, optimizer, model_save_condition, window_size, model_save_filename, tf_function)
 
     ######## Save Data ########
     csv_filename = root_dir + date_str + "_" + str(max_run + 1) + "_data" + ".csv"
