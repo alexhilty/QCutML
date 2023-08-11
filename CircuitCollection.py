@@ -31,6 +31,8 @@ class CircuitCollection:
         self.q_transpiled = [] # list of transpiled qiskit circuits
         self.images = [] # list of image based representations of circuits
 
+        self.circuit_indexes = {} # dictionary of circuit indices (key: circuit, value: index tuple), O(1) lookup 
+
         self.generated_circuits = False
         self.built_circuits = False
 
@@ -48,49 +50,52 @@ class CircuitCollection:
     
     # Takes a set of gates and returns the corresponding index in circuits/q_circuits/q_transpiled
     def gates_to_index(self, gates = []):
-        n1 = int(round(len(gates) - (sum(self.reps) - self.depth) - 1))
-        n2 = 0
+        # n1 = int(round(len(gates) - (sum(self.reps) - self.depth) - 1))
+        # n2 = 0
 
-        seed = copy.deepcopy(self.seed)
-        reps = copy.deepcopy(self.reps)
+        # seed = copy.deepcopy(self.seed)
+        # reps = copy.deepcopy(self.reps)
 
-        for i in range(len(gates)):
+        # for i in range(len(gates)):
             
-            # compute number of circuits that have this number of gates starting with a specific gate
-            # print(str(len(seed) - 1) + "! / " + str(len(seed) - 1 - (n1 - 1 - i)) + "!")
-            # circ_num = m.factorial(len(seed) - 1) / m.factorial(len(seed) - (len(gates) - i))
-            n = sum(reps)
+        #     # compute number of circuits that have this number of gates starting with a specific gate
+        #     # print(str(len(seed) - 1) + "! / " + str(len(seed) - 1 - (n1 - 1 - i)) + "!")
+        #     # circ_num = m.factorial(len(seed) - 1) / m.factorial(len(seed) - (len(gates) - i))
+        #     n = sum(reps)
 
-            gate_index = seed.index(gates[i])
+        #     gate_index = seed.index(gates[i])
 
-            # do some math (honestly surprised this works)
-            nfac = m.factorial(n - 1)
-            for j in range(gate_index, len(seed)):
-                nfac /= m.factorial(reps[j])
-            var_fac_sum = 0
-            for j in range(0, gate_index):
-                var_temp = 1
-                for k in range(0, gate_index):
-                    var_temp /= m.factorial(reps[k]) if k != j else m.factorial(reps[k] - 1)
-                var_fac_sum += var_temp
+        #     # do some math (honestly surprised this works)
+        #     nfac = m.factorial(n - 1)
+        #     for j in range(gate_index, len(seed)):
+        #         nfac /= m.factorial(reps[j])
+        #     var_fac_sum = 0
+        #     for j in range(0, gate_index):
+        #         var_temp = 1
+        #         for k in range(0, gate_index):
+        #             var_temp /= m.factorial(reps[k]) if k != j else m.factorial(reps[k] - 1)
+        #         var_fac_sum += var_temp
 
-            circ_num = nfac * var_fac_sum
+        #     circ_num = nfac * var_fac_sum
 
-            # print(round(circ_num))
+        #     # print(round(circ_num))
 
-            # add to total index
-            n2 += round(circ_num)
+        #     # add to total index
+        #     n2 += round(circ_num)
 
-            # decrement reps
-            if reps[gate_index] > 1:
-                reps[gate_index] -= 1
-            else:
-                reps.pop(gate_index)
-                seed.pop(gate_index)
+        #     # decrement reps
+        #     if reps[gate_index] > 1:
+        #         reps[gate_index] -= 1
+        #     else:
+        #         reps.pop(gate_index)
+        #         seed.pop(gate_index)
 
-            n -= 1
+        #     n -= 1
 
-        return (n1, int(n2))
+        # get index of circuit
+        n1, n2 = self.circuit_indexes[tuple(gates)]
+
+        return (int(n1), int(n2))
     
     # returns the indecies of all direct children for a given index
     def child_indecies(self, n1, n2):
@@ -111,6 +116,7 @@ class CircuitCollection:
     # FIXME: fix argument structure
     def convert_to_image(self, *args):
         n1, n2 = args[0][0], args[0][1]
+        # print(n1, n2)
         circuit = self.circuits[n1][n2]
 
         image = np.zeros((sum(self.reps), self.num_qubits)) # initialize image
@@ -144,6 +150,10 @@ class CircuitCollection:
         for i in range(len(seed) - self.depth + 1, len(seed) + 1):
             it = unique_elem_it(itertools.permutations(seed, i))
             self.circuits.append(list(it))
+
+            # indexes (maybe later hash the circuits)
+            for j in range(len(self.circuits[-1])):
+                self.circuit_indexes[self.circuits[-1][j]] = (i - (len(seed) - self.depth + 1), j)
 
         self.generated_circuits = True
 

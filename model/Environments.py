@@ -15,7 +15,7 @@ class CutEnvironment:
         '''
 
         self.circol = circuit_collection
-        self.t_images = tf.convert_to_tensor(np.array(self.circol.images), dtype=tf.float32) # tensor of all images
+        self.t_images = [tf.convert_to_tensor(np.array(self.circol.images[i]), dtype=tf.float32) for i in range(len(self.circol.images))] # tensor of all images
 
     # defining environment step (cutting a circuit)
     # the action is index of the gate to cut (column of image to remove)
@@ -48,7 +48,9 @@ class CutEnvironment:
 
             # remove gate from circuit
             gates = list(self.circol.circuits[state[0]][state[1]])
-            gates.pop(action)
+
+            if action < len(gates):
+                gates.pop(action)
 
             # get new state
             new_state = self.circol.gates_to_index(gates)
@@ -77,7 +79,9 @@ class CutEnvironment:
     def get_image(self, n: tf.Tensor = None):
         '''Gets the image for the current state.'''
 
-        return tf.gather_nd(self.t_images, n)
+        n1, n2 = tf.split(n, num_or_size_splits=2)
+        # print(tf.get_static_value(n1), n2)
+        return tf.gather_nd(self.t_images[int(n1.numpy())], n2)
     
     def convert_to_images_c(self, indexes: tf.Tensor):
         '''Converts the circuits in the given batch to images.

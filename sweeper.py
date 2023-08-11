@@ -7,9 +7,9 @@ import numpy as np
 ######################### MODIFY THESE PARAMETERS #########################
 
 # first dimension
-sweep_arg = "layer_lists" # can be any argument that is passed to run_model
-start = 100
-end = 1000
+sweep_arg = "learning_rate" # can be any argument that is passed to run_model
+start = 0.001
+end = 0.010
 steps = 10
 
 # second dimension, override with param list for arguments that are not numbers
@@ -23,12 +23,12 @@ values = np.linspace(start, end, steps)
 values2 = np.linspace(start2, end2, steps2)
 
 # override heere for non numeric arguments
-values = [ [[('lstm', 24), ('fc', int(x)), ('fc', int(x/2))]] for x in values]
+# values = [ [[('flatten',None), ('fc', int(x)), ('fc', int(x/2))]] for x in values]
 # values2 = [1, 2, 3]
 
 # construct notes string based on sweep parameters
-notes = "Testing tf.function with lstm model. Sweeping " + sweep_arg + " and " + sweep_arg2 + "."
-sweep_num = 5 # number to append to data folder
+notes = "Testing multi gates with fc layers. Sweeping " + sweep_arg + " and " + sweep_arg2 + "."
+sweep_num = 1 # number to append to data folder
 
 
 ######################### DO NOT MODIFY BELOW THIS LINE #########################
@@ -37,20 +37,21 @@ sweep_num = 5 # number to append to data folder
 param_dict = {
     "seed": 324, # seed for numpy and tensorflow
 
-    "circ_filename": "../../qcircml_code/data/circol_base_4qubits.p", # filename of circuit collection
+    "circ_filename": "../../qcircml_code/data/circol_base_4qubits_8gates_depth3_dict.p", # filename of circuit collection
 
     # batch parameters
-    "load_dataset": True, # load dataset from file
+    "load_dataset": False, # load dataset from file
     "dataset_filename": "../../qcircml_code/data_08042023_sweep1/36/08042023_36_dataset.p", # filename of batched dataset
     "batch_size": 90,
-    "loops": int(2000),
-    "train_percent": 0.7,
+    "loops": int(100),
+    "train_percent": 0.8,
 
     # model parameters
-    "action_size": 6, # number of actions the agent can take
-    "layer_lists": [[('flatten', None), ('fc', 512), ('fc', 256), ('fc', 128)]], # list of lists of number of hidden units for each desired fully connected layer (one list for each model)
+    "action_size": 8, # number of actions the agent can take
+    "model_type": ["rl"], # type of model to use
+    "layer_lists": [[('flatten', None), ('fc', 1133), ('fc', 566)]], # list of lists of number of hidden units for each desired fully connected layer (one list for each model)
 
-    "learning_rate": 0.002, # learning rate for optimizer# define critic loss function
+    "learning_rate": 0.005, # learning rate for optimizer# define critic loss function
     "load": False, # load model weights from file
     "model_load_filenames": ["../../qcircml_code/data_07282023_2/07282023_14_weights.h5"], # filename of model weights, must be same size as layer_lists
     "transpose": [True], # whether to transpose the image before feeding it into the model, must be same size as layer_lists
