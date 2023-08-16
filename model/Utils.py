@@ -147,6 +147,9 @@ def train_loop(train_data, model_list, env, critic_loss, optimizer, save_conditi
 
     t = tqdm.trange(len(train_data)) # for showing progress bar
     for i in t:
+        # if list(model_list[0].variables) != []:
+        #     print(model_list[0].variables)
+        #     quit()
         for j in range(len(model_list)):
             # print('j ----------------------:', j)
 
@@ -187,12 +190,16 @@ def train_loop(train_data, model_list, env, critic_loss, optimizer, save_conditi
 # FUNCTIONS FOR DATASET CREATION
 ################################################################################################
 
-def create_dataset(batch_size: int, loops: int, circol: CircuitCollection, training_percent: float = 0.8):
+def create_dataset(batch_size: int, loops: int, circol: CircuitCollection, training_percent: float = 0.8, depth: int = 2):
     '''Creates a dataset of circuits to train on'''
     
     train_batch = []
     # validation_batch = []
-    index_list_master = [[len(circol.circuits) - 1, i] for i in range(0, len(circol.circuits[-1])) ] # create list of all possible circuit indexes
+    index_list_master = []
+
+    for j in range(depth - 1):
+        # index_list_master.append([[len(circol.circuits) - 1 - j, i] for i in range(0, len(circol.circuits[-1 - j])) ])  # create list of all possible circuit indexes
+        index_list_master += [[len(circol.circuits) - 1 - j, i] for i in range(0, len(circol.circuits[-1 - j]))]  # create list of all possible circuit indexes
 
     # shuffle list
     np.random.shuffle(index_list_master)
@@ -221,36 +228,58 @@ def create_dataset(batch_size: int, loops: int, circol: CircuitCollection, train
 ################################################################################################
 
 # function for computing best cuts on top level circuits
-def compute_best_cuts(circol: CircuitCollection):
+def compute_best_cuts(circol: CircuitCollection, depth: int = 2):
     optimal_circuits = []
     optimal_cuts = []
 
-    for j in range(len(circol.circuits[-1])): # loop through max lenght circuits
-        ind = circol.child_indecies(len(circol.circuits) - 1, j) # compute children indecies
-        depths = [circol.q_transpiled[n1][n2].depth() for n1, n2 in ind]
-        min = depths[np.argmin(depths)]
-        min_indexes = np.where(np.array(depths) == min)[0]
+    for k in range (depth - 1):
 
-        optimal_circuits.append([ind[i] for i in min_indexes]) # choose child with lowest depth
+        optimal_cuts.insert(0, [])
+        optimal_circuits.insert(0, [])
 
-        # compute the index of the cut gate
-        parent_gates = circol.circuits[-1][j]
-        child_gates = [circol.circuits[optimal_circuits[-1][i][0]][optimal_circuits[-1][i][1]] for i in range(len(optimal_circuits[-1]))]
+        for j in range(len(circol.circuits[-1 - k])): # loop through max lenght circuits
 
-        temp = []
-        for gate in parent_gates:
-            b = False
+            ind = circol.child_indecies(len(circol.circuits) - 1 - k, j) # compute children indecies
+            depths = [circol.q_transpiled[n1][n2].depth() for n1, n2 in ind]
+            min = depths[np.argmin(depths)]
+            min_indexes = np.where(np.array(depths) == min)[0]
 
-            # check if gate is a best cut
+            optimal_circuits[0].append([ind[i] for i in min_indexes]) # choose child with lowest depth
+
+            # compute the index of the cut gate
+            parent_gates = circol.circuits[-1 - k][j]
+            child_gates = [circol.circuits[optimal_circuits[0][-1][i][0]][optimal_circuits[0][-1][i][1]] for i in range(len(optimal_circuits[0][-1]))]
+
+            temp = []
+            # for gate in parent_gates:
+            #     b = False
+
+            #     # check if gate is a best cut
+            #     for child_list in child_gates:
+            #         if gate not in child_list:
+            #             b = True
+            #             break
+
+            #     if b:
+            #         temp.append(parent_gates.index(gate))
+
             for child_list in child_gates:
-                if gate not in child_list:
-                    b = True
-                    break
+                for i in range(len(child_list)):
+                    if child_list[i] != parent_gates[i]:
+                        temp.append(i) ## FIXME: this works for now, but this is not guaranteed to be the exact cut index if multiple gates in a row (doens't matter now since we only care about the min depth at the validation step)
+                        break
 
-            if b:
-                temp.append(parent_gates.index(gate))
-            
-        optimal_cuts.append(temp)
+                    if i == len(child_list) - 1:
+                        temp.append(i + 1)
+
+            # print(temp)
+            # if temp == []:
+            #     print(ind)
+            #     print(parent_gates, child_gates)
+            #     quit()
+
+                
+            optimal_cuts[0].append(temp)
 
 
     return optimal_cuts, optimal_circuits
@@ -269,7 +298,8 @@ def validation2(val_indexes, model, env, optimal_cuts):
 
     # choose first cut for each list in optimal_cuts
     for i in range(len(val_indexes)):
-        opt_cuts_temp.append(optimal_cuts[val_indexes[i][1]][0])
+        # print(optimal_cuts[val_indexes[i][0] - 1][val_indexes[i][1]])
+        opt_cuts_temp.append(optimal_cuts[val_indexes[i][0] - 1][val_indexes[i][1]][0]) # NOTE: -1 because optimal_cuts is 1 shorter than val_indexes
 
     opt_cuts_temp = tf.convert_to_tensor(opt_cuts_temp, tf.int32)
     # transpose

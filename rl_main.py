@@ -13,7 +13,7 @@ import os
 import csv
 
 # Custom Imports
-from model.ActorCritic import Cutter, RandomSelector
+from model.ActorCritic import Cutter, RandomSelector, CutterPointer
 from model.Utils import *
 from model.Environments import CutEnvironment
 
@@ -33,12 +33,15 @@ def run_model(
 
     # model parameters
     action_size = 6, # number of actions the agent can take
-    layer_lists = [[('flatten', None), ('fc', 1024), ('fc', 256), ('fc', 128)]], # list of lists of number of hidden units for each desired fully connected layer (one list for each model)
+    model_type = ["rl", "attention"], # list of model types, must be same size as layer_lists (rl is normal, attention is pointer network)
+    layer_lists = [[('flatten', None), ('fc', 1024), ('fc', 256), ('fc', 128)], [24, 100, [('fc', 256), ('fc', 128), ('fc', 64)]]], # list of lists of number of hidden units for each desired fully connected layer (one list for each model)
+    # for layer_lists, if model_type is rl, then each element is a tuple of (layer_type, layer_size)
+    # if model_type is attention, then the list is: [lstm_size, attention_size, g_model_list = [(layer_type, layer_size), ...]
 
     learning_rate = 0.01, # learning rate for optimizer# define critic loss function
     load = False, # load model weights from file
     model_load_filenames = ["../../qcircml_code/data_07282023_2/07282023_14_weights.h5"], # filename of model weights, must be same size as layer_lists
-    transpose = [False], # whether to transpose the image before feeding it into the model, must be same size as layer_lists
+    transpose = [False, False], # whether to transpose the image before feeding it into the model, must be same size as layer_lists (no affect on attention model)
 
     validate_with_best = False, # validate with best checkpoint, FIXME: functionality broken with multiple models
 
@@ -54,6 +57,8 @@ def run_model(
     # notes
     notes = "",
     show_plot = True):
+
+    # tf.config.run_functions_eagerly(True)
 
     ######## More Model Parameters ########
 
@@ -101,6 +106,7 @@ def run_model(
         "loops": loops,
         "train_percent": train_percent,
         "action_size": action_size,
+        "model_type": model_type,
         "layer_list": layer_lists,
         "transpose": transpose,
         "learning_rate": learning_rate,
@@ -131,7 +137,7 @@ def run_model(
         train_data, train_index, val_data = pickle.load(open(dataset_filename, "rb"))
     else:
         dataset_filename = root_dir + date_str + "_" + str(max_run + 1) + "_dataset"  + ".p"
-        train_data, train_index, val_data = create_dataset(batch_size, loops, circol, train_percent)
+        train_data, train_index, val_data = create_dataset(batch_size, loops, circol, train_percent, circol.depth)
         pickle.dump((train_data, train_index, val_data), open(dataset_filename, "wb"))
 
     # print("train_data:", train_data.shape)
@@ -147,10 +153,15 @@ def run_model(
     elif len(transpose) != len(layer_lists):
         raise Exception("Transpose must be same size as layer_lists")
 
-    for i in range(len(layer_lists)):
-        # print("layer_list:", layer_list)
-        model = Cutter(action_size, layer_lists[i], transpose[i]) # create model
-        models.append(model)
+    for i in range(len(model_type)):
+        if model_type[i] == "attention":
+            model = CutterPointer(layer_lists[i][0], layer_lists[i][1], layer_lists[i][2])
+            models.append(model)
+        elif model_type[i] == "rl":
+            model = Cutter(action_size, layer_lists[i], transpose[i])
+            models.append(model)
+        else:
+            raise Exception("Invalid model type:", model_type[i])
 
     rando = RandomSelector(action_size)
     models.append(rando)
@@ -292,7 +303,7 @@ def run_model(
     # hist_filename = root_dir + date_str + "_" + str(max_run + 1) + "_hist" + ".txt"
 
     # compute the best cuts
-    optimal_cuts, optimal_circuits_index = compute_best_cuts(circol)
+    optimal_cuts, optimal_circuits_index = compute_best_cuts(circol, depth=circol.depth)
 
     # validate all the models on validation and training data
     chosen_cut_list_v = []
