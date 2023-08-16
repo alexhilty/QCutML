@@ -58,7 +58,7 @@ def run_model(
     notes = "",
     show_plot = True):
 
-    tf.config.run_functions_eagerly(True)
+    # tf.config.run_functions_eagerly(True)
 
     ######## More Model Parameters ########
 
