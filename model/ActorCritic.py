@@ -106,7 +106,16 @@ class CutterPointer(tf.keras.Model):
     def call(self, inputs: tf.Tensor):
         '''Forward pass of the model'''
 
+        # print(inputs)
+
         x = tf.transpose(inputs, perm=[0, 2, 1]) # transpose image for lstm
+        # x = tf.map_fn(lambda y: tf.RaggedTensor.from_tensor(tf.convert_to_tensor(np.transpose(y.numpy()))), elems=inputs)
+
+        # print(x)
+
+        # x = tf.map_fn(lambda y: y.to_tensor(), elems=x, fn_output_signature = tf.TensorSpec(shape=(6, 4), dtype=tf.float32))
+
+        # print(x)
 
         x = self.lstm(x) # lstm layer, shape = (batch_size, num_gates, lstm_width)
 
