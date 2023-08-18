@@ -20,7 +20,7 @@ def main():
     gates = [(0, 1), (1, 2), (2, 3), (0, 2), (1, 3), (0, 3)]
     # gates = [(0, 1), (1, 2), (2, 3)]
     # reps = list(np.ones(len(gates)))
-    reps = [2, 1, 1, 2, 1, 1]
+    reps = [2, 2, 2, 2, 1, 1]
 
     # circuit collection
     circol = cc(gates, n, 3, reps)
@@ -42,14 +42,14 @@ def main():
     # print circuits per second
     print("--- %s circuits per second ---" % (circol.num_circuits() * trials/(time.time() - start_time)))
 
-    pickle.dump(circol, open("../../qcircml_code/data/circol_base_4qubits_8gates_depth3_dict.p", "wb"))
+    pickle.dump(circol, open("../../qcircml_code/data/circol_base_4qubits_10gates_depth3_dict.p", "wb"))
 
     # n1, n2 = circol.gates_to_index([(2, 3), (0, 3), (1, 2), (0, 1)])
     # print(n1, n2)
     # print(circol.circuits[n1][n2])
 
 def main2():
-    circol = pickle.load(open("../../qcircml_code/data/circol_base_4qubits_8gates_depth3_dict.p", "rb"))
+    circol = pickle.load(open("../../qcircml_code/data/circol_base_4qubits_10gates_depth3_dict.p", "rb"))
 
     # print(len(circol.circuits[-1]))
     # for circuit in circol.circuits[-1]:
@@ -78,9 +78,9 @@ def main2():
     # check if all images are the same size
     print(all([circol.images[n1][n2].shape == circol.images[n1][n2].shape for n1 in range(len(circol.circuits)) for n2 in range(len(circol.circuits[n1]))]))
 
-    tf.convert_to_tensor(np.array(circol.images), dtype=tf.float32)
+    # tf.convert_to_tensor(np.array(circol.images), dtype=tf.float32)
 
-    pickle.dump(circol, open("../../qcircml_code/data/circol_base_4qubits_8gates_depth3_dict.p", "wb"))
+    pickle.dump(circol, open("../../qcircml_code/data/circol_base_4qubits_10gates_depth3_dict.p", "wb"))
 
     # child = circol.child_indecies(n1, n2)
 
@@ -88,6 +88,6 @@ def main2():
     # print(*map(lambda x: circol.circuits[x[0]][x[1]], child), sep = "\n")
 
 if __name__ == "__main__":
-    # main()
+    main()
 
     main2()

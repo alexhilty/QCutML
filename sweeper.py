@@ -7,9 +7,9 @@ import numpy as np
 ######################### MODIFY THESE PARAMETERS #########################
 
 # first dimension
-sweep_arg = "learning_rate" # can be any argument that is passed to run_model
-start = 0.001
-end = 0.01
+sweep_arg = "layer_lists" # can be any argument that is passed to run_model
+start = 10
+end = 100
 steps = 10
 
 # second dimension, override with param list for arguments that are not numbers
@@ -23,7 +23,7 @@ values = np.linspace(start, end, steps)
 values2 = np.linspace(start2, end2, steps2)
 
 # override heere for non numeric arguments
-# values = [ [[ 80, 80, [('fc', int(700)), ('fc', int(700/2))] ]] for x in values]
+values = [ [[ int(x), 80, [('fc', int(700)), ('fc', int(700/2))] ]] for x in values]
 # values = [ [ [('flatten', None), ('fc', 1133), ('fc', 566)] ]] 
 # values2 = [1, 2, 3]
 
@@ -38,10 +38,10 @@ sweep_num = 2 # number to append to data folder
 param_dict = {
     "seed": 324, # seed for numpy and tensorflow
 
-    "circ_filename": "../../qcircml_code/data/circol_base_4qubits_8gates_depth3_dict.p", # filename of circuit collection
+    "circ_filename": "../../qcircml_code/data/circol_base_4qubits_8gates_depth4_dict.p", # filename of circuit collection
 
     # batch parameters
-    "load_dataset": True, # load dataset from file
+    "load_dataset": False, # load dataset from file
     "dataset_filename": "../../qcircml_code/data_08152023_sweep2/0/08152023_0_dataset.p", # filename of batched dataset
     "batch_size": 90,
     "loops": int(100),
