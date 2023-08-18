@@ -18,6 +18,28 @@ class CutEnvironment:
 
         self.image_shape = (self.circol.num_qubits, sum(self.circol.reps)) # FIXME: allow for variable image size
 
+    def cut_numpy_single(self, circuit_batch: np.array, actions: np.array):
+        state = circuit_batch[0]
+        action = actions[0][0]
+
+        # remove gate from circuit
+        gates = list(self.circol.current_section.circuits[state[0]][state[1]])
+
+        if action < len(gates):
+            gates.pop(action)
+
+        # get new state
+        new_state = self.circol.gates_to_index(gates)
+
+        # # compute reward (negative depth difference) (old - new)
+        reward = self.circol.current_section.q_transpiled[state[0]][state[1]].depth() - self.circol.current_section.q_transpiled[new_state[0]][new_state[1]].depth() - 1
+        reward = reward / abs(reward) * reward ** 2 if reward != 0 else 0
+
+        depth = self.circol.current_section.q_transpiled[new_state[0]][new_state[1]].depth()
+
+        return np.array([reward], dtype=np.float32), np.array([depth], dtype =np.int32)
+
+
     # defining environment step (cutting a circuit)
     # the action is index of the gate to cut (column of image to remove)
     def cut_numpy(self, circuit_batch: np.array, actions: np.array):
@@ -71,10 +93,14 @@ class CutEnvironment:
         return rewards, depths#, self.get_image()
     
     # wrapper for use as tensorflow function
-    def cut(self, circuit_batch: tf.RaggedTensor, actions: tf.RaggedTensor):
+    def cut(self, circ_action: tuple):
         '''See cut_numpy() for details.'''
 
-        return tf.numpy_function(self.cut_numpy, [circuit_batch, actions], [tf.float32, tf.int32]) # FIXME: numpy_function has some limitations
+        # return tuple(tf.numpy_function(self.cut_numpy, [circuit_batch, actions], (tf.float32, tf.int32))) # FIXME: numpy_function has some limitations
+
+        circuit_batch = circ_action[0]
+        actions = circ_action[1]
+        return tuple(tf.numpy_function(self.cut_numpy_single, [circuit_batch, actions], (tf.float32, tf.int32))) # FIXME: numpy_function has some limitations
     
     def convert_to_images_c(self, indexes: tf.Tensor):
         '''Converts the circuits in the given batch to images.
@@ -89,8 +115,6 @@ class CutEnvironment:
             images: tf.Tensor
                 batch of images of the converted circuits
         '''
-
-        index_shape = indexes.shape
 
         # get images
         images = tf.gather_nd(self.circol.current_section.images, indexes)

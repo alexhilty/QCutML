@@ -13,7 +13,7 @@ import os
 import csv
 
 # Custom Imports
-from model.ActorCritic import Cutter, RandomSelector, CutterPointer
+from model.ActorCritic import RandomSelector, CutterPointer
 from model.Utils import *
 from model.Environments import CutEnvironment
 from CircuitCollection import CircuitDataset as cd

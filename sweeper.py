@@ -8,7 +8,7 @@ import numpy as np
 
 # first dimension
 sweep_arg = "learning_rate" # can be any argument that is passed to run_model
-start = 0.001
+start = 0.003
 end = 0.01
 steps = 10
 
@@ -61,7 +61,7 @@ param_dict = {
 
     # training parameters
     "window_size": 100, # size of window for moving average
-    "tf_function": True, # whether to use tf.function decorator
+    "tf_function": False, # whether to use tf.function decorator
 
     # saving parameters
     "save": True, # save data to file

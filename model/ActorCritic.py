@@ -30,28 +30,27 @@ class CutterPointer(tf.keras.Model):
     def call(self, inputs: tf.Tensor):
         '''Forward pass of the model'''
 
-        # print(inputs)
-
         inputs = inputs.to_tensor(shape = (1, 4, 7)) # FIXME: allow for variable input size
 
-        print(inputs.shape)
+        print(inputs)
 
         # print(inputs)
         x = tf.transpose(inputs, perm=[0, 2, 1]) # transpose image for lstm
-        # x = tf.map_fn(lambda y: tf.convert_to_tensor(np.transpose(y.numpy())), elems=inputs)
-
-        print(x)
 
         x = self.lstm(x) # lstm layer, shape = (batch_size, num_gates, lstm_width)
 
         # compute g
         g = tf.zeros((x.shape[0], self.lstm_width)) # initialize g
+        print(g)
+
         for layer in self.g_model_list:
             g = layer(g)
+            print(g)
         g = self.out_g(g) # shape = (batch_size, lstm_width)
-        
+        print(g)
         # compute attention
         a = self.attention(x, g)
+        print(a)
 
         return a, self.out_c(g) # size of a depends on number of gates in circuit
 
@@ -106,4 +105,4 @@ class RandomSelector(tf.keras.Model):
         uni = tf.repeat([1/inputs.shape[2]], inputs.shape[2])
         uni = tf.repeat([uni], repeats = [inputs.shape[0]], axis = 0)
 
-        return tf.squeeze(uni), tf.squeeze(tf.ones(shape=(inputs.shape[0], 1)))
+        return tf.squeeze(uni), tf.ones(shape=(inputs.shape[0], 1))

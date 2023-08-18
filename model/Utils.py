@@ -36,28 +36,65 @@ def run_episode(circuit_batch, model, env: CutEnvironment):
         '''
 
     # initialize tensor arrays to store the observations
-    rewards = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True)
+    # rewards = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True)
+    # action_probs = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True)
+    # values = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True)
 
     # compute all images in batch
     images = env.convert_to_images_c(circuit_batch)
-    # print(images)
 
-    # run model on images
-    action_logits_c, values = model(images)
-    values = tf.squeeze(values)
+    action_logits_c, values = tf.map_fn(model, tf.expand_dims(images, 1), fn_output_signature=(tf.float32, tf.float32))
+    # print(values)
+    values = tf.squeeze(values, 1)
+    
+    # print(action_logits_c)
+    # print(tf.squeeze(values))
 
-    # add batch dimension to action_logits_c and values
-    action_logits_c = tf.expand_dims(action_logits_c, 0)
-    values = tf.expand_dims(values, 0)
+    # print(action_logits_c, tf.squeeze(values, 1))
 
-    # sample next action from the action probability distribution
     action = tf.random.categorical(action_logits_c, 1)
     action_probs_c = tf.nn.softmax(action_logits_c) # compute log probability of actions
     action_probs = tf.gather_nd(action_probs_c, action, batch_dims = 1) # write chosen action probability to tensor array
 
-    # apply action to environment to get next state and reward
-    # FIXME: later get images here too
-    rewards, depths = env.cut(circuit_batch, action)
+    # reward, depths = env.cut([circuit_batch[i]], action)
+    # y = lambda x: print(x[0], x[1])
+
+    circuit_batch = tf.expand_dims(circuit_batch, 1)
+    action = tf.expand_dims(action, 1)
+
+    rewards, depths = tf.map_fn(env.cut, elems=[circuit_batch, action], fn_output_signature=(tf.float32, tf.int32))
+
+    # print(rewards, depths)
+    # quit()
+
+    # iterate over batch of circuits
+    # for i in tf.range(circuit_batch.shape[0]):
+
+    #     # run model on images
+    #     # action_logits_c, value = model(tf.expand_dims(images[i], 0))
+    #     # values = values.write(i, tf.squeeze(value))
+
+    #     # add batch dimension to action_logits_c and values
+    #     # action_logits_c = tf.expand_dims(action_logits_c, 0)
+    #     # values = tf.expand_dims(values, 0)
+
+    #     # sample next action from the action probability distribution
+    #     # action = tf.random.categorical(action_logits_c, 1)
+    #     # action_probs_c = tf.nn.softmax(action_logits_c) # compute log probability of actions
+    #     # action_prob = tf.gather_nd(action_probs_c, action, batch_dims = 1) # write chosen action probability to tensor array
+
+    #     # action_probs = action_probs.write(i, tf.squeeze(action_prob))
+
+    #     # apply action to environment to get next state and reward
+    #     # FIXME: later get images here too
+    #     reward, depths = env.cut([circuit_batch[i]], action)
+
+    #     rewards = rewards.write(i, tf.squeeze(reward))
+
+    # stack
+    # action_probs = action_probs.stack()
+    # values = values.stack()
+    # rewards = rewards.stack()
 
     return action_probs, values, rewards
 
