@@ -108,8 +108,15 @@ class CutterPointer(tf.keras.Model):
 
         # print(inputs)
 
+        inputs = inputs.to_tensor(shape = (1, 4, 7))
+
+        print(inputs.shape)
+
+        # print(inputs)
         x = tf.transpose(inputs, perm=[0, 2, 1]) # transpose image for lstm
-        # x = tf.map_fn(lambda y: tf.RaggedTensor.from_tensor(tf.convert_to_tensor(np.transpose(y.numpy()))), elems=inputs)
+        # x = tf.map_fn(lambda y: tf.convert_to_tensor(np.transpose(y.numpy())), elems=inputs)
+
+        print(x)
 
         # print(x)
 
@@ -174,13 +181,14 @@ class RandomSelector(tf.keras.Model):
     def call(self, inputs: tf.Tensor):
 
         # create a tensor with number 1 in a random position for each batch
+        inputs = inputs.to_tensor(shape = (1, 4, 7))
 
         self.call_count += 1
 
         uni = tf.repeat([1/inputs.shape[2]], inputs.shape[2])
         uni = tf.repeat([uni], repeats = [inputs.shape[0]], axis = 0)
 
-        return uni, tf.ones(shape=(inputs.shape[0], 1))
+        return tf.squeeze(uni), tf.squeeze(tf.ones(shape=(inputs.shape[0], 1)))
     
 # an actor that will always pick the same one
 class FixedSelector(tf.keras.Model):

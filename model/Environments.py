@@ -124,6 +124,6 @@ class CutEnvironment:
         # get images
         images = tf.gather_nd(self.circol.current_section.images, indexes)
 
-        images = images.to_tensor(shape = (index_shape[0], self.image_shape[0], self.image_shape[1]))
+        # images = images.to_tensor(shape = (index_shape[0], self.image_shape[0], self.image_shape[1]))
 
         return images

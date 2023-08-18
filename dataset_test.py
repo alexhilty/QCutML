@@ -54,7 +54,7 @@ def main2():
     # load dataset
     circol = pickle.load(open(root_dir + "/dataset.p", "rb"))
 
-    circol.set_batches(0.7, 90, 50)
+    circol.set_batches(0.7, 1, 50)
 
     # dump dataset
     pickle.dump(circol, open(root_dir + "/dataset.p", "wb"))

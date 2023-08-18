@@ -46,6 +46,10 @@ def run_episode(circuit_batch, model, env: CutEnvironment):
     action_logits_c, values = model(images)
     values = tf.squeeze(values)
 
+    # add batch dimension to action_logits_c and values
+    action_logits_c = tf.expand_dims(action_logits_c, 0)
+    values = tf.expand_dims(values, 0)
+
     # sample next action from the action probability distribution
     action = tf.random.categorical(action_logits_c, 1)
     action_probs_c = tf.nn.softmax(action_logits_c) # compute log probability of actions
