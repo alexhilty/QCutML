@@ -16,15 +16,7 @@ class CutEnvironment:
 
         self.circol = circuit_dataset
 
-        self.image_shape = (self.circol.num_qubits, sum(self.circol.reps))
-
-        # # concatenate all lists of images into one numpy array
-        # self.n_images = np.array(self.circol.images[0])
-        # for i in range(1, len(self.circol.images)):
-        #     self.n_images = np.concatenate((self.n_images, np.array(self.circol.images[i])))
-
-        # self.t_images = tf.convert_to_tensor(self.n_images, dtype = tf.float32) # tensor of all images
-        # self.t_images_breaks = tf.stack(np.cumsum(np.array([0] + [len(self.circol.images[i]) for i in range(len(self.circol.images))] ))) # tensor of all image breaks
+        self.image_shape = (self.circol.num_qubits, sum(self.circol.reps)) # FIXME: allow for variable image size
 
     # defining environment step (cutting a circuit)
     # the action is index of the gate to cut (column of image to remove)
@@ -83,18 +75,6 @@ class CutEnvironment:
         '''See cut_numpy() for details.'''
 
         return tf.numpy_function(self.cut_numpy, [circuit_batch, actions], [tf.float32, tf.int32]) # FIXME: numpy_function has some limitations
-
-    # # get image for current state
-    # def get_image(self, n: tf.Tensor = None):
-    #     '''Gets the image for the current state.'''
-
-    #     n1, n2 = tf.split(n, num_or_size_splits=2)
-    #     # tf.print(tf.cast(n1, tf.int32))
-    #     # print(tf.get_static_value(n1), n2)
-
-    #     image = tf.gather(self.t_images, tf.cast(tf.gather(self.t_images_breaks, n1), tf.int64) + tf.cast(n2, tf.int64))
-
-    #     return tf.squeeze(image)
     
     def convert_to_images_c(self, indexes: tf.Tensor):
         '''Converts the circuits in the given batch to images.
@@ -110,16 +90,7 @@ class CutEnvironment:
                 batch of images of the converted circuits
         '''
 
-        # image_shape = self.circol.current_section.images[0][0].shape
         index_shape = indexes.shape
-        # print(self.image_shape)
-
-
-        # # convert all circuits in batch to images using tf.scan
-        # images = tf.scan(
-        #     lambda a, b: self.get_image(b), indexes, initializer = tf.zeros((image_shape[0], image_shape[1])))
-
-        # return images
 
         # get images
         images = tf.gather_nd(self.circol.current_section.images, indexes)
