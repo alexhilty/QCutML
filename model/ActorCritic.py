@@ -1,4 +1,5 @@
 from tensorflow.keras import layers
+from tensorflow.keras import regularizers
 import tensorflow as tf
 import numpy as np
 
@@ -100,7 +101,7 @@ class CutterPointer(tf.keras.Model):
         self.out_c = layers.Dense(1) # crictic output
 
         # defining lstm and attention layers
-        self.lstm = layers.LSTM(lstm_width, activation = 'relu', return_sequences = True)
+        self.lstm = layers.LSTM(lstm_width, activation = 'relu', return_sequences = True, kernel_regularizer=regularizers.l2(0.001))
         self.attention = Attention(attention_size)
 
     def call(self, inputs: tf.Tensor):
@@ -110,16 +111,26 @@ class CutterPointer(tf.keras.Model):
 
         x = self.lstm(x) # lstm layer, shape = (batch_size, num_gates, lstm_width)
 
-        # compute g
-        g = tf.zeros((x.shape[0], self.lstm_width)) # initialize g
-        for layer in self.g_model_list:
-            g = layer(g)
-        g = self.out_g(g) # shape = (batch_size, lstm_width)
-        
-        # compute attention
-        a = self.attention(x, g)
+        # get last output
+        # g = tf.map_fn(lambda batch: batch[-1], x) # shape = (batch_size, lstm_width)
 
-        return a, self.out_c(g) # size of a depends on number of gates in circuit
+        # remove last output in each batch
+        # x = tf.map_fn(lambda batch: batch[:-1], x) # shape = (batch_size, num_gates - 1, lstm_width)
+        # tf.print(g)
+
+        # compute g
+        # g = tf.zeros((x.shape[0], self.lstm_width)) # initialize g
+        # for layer in self.g_model_list:
+        #     g = layer(g)
+        # g = self.out_g(g) # shape = (batch_size, lstm_width)
+        # tf.print(g)
+        
+        ze = tf.zeros((x.shape[0], self.lstm_width))
+        # compute attention
+        a = self.attention(x, ze)
+        # tf.print(a)
+
+        return a, self.out_c(ze) # size of a depends on number of gates in circuit
 
 # custom layer for attention
 class Attention(layers.Layer):

@@ -28,8 +28,8 @@ values = [ [[ int(x), 80, [('fc', int(700)), ('fc', int(700/2))] ]] for x in val
 # values2 = [1, 2, 3]
 
 # construct notes string based on sweep parameters
-notes = "Testing multi gates with pointer network. Sweeping " + sweep_arg + " and " + sweep_arg2 + "."
-sweep_num = 2 # number to append to data folder
+notes = "Testing multi gates with CORRECTED pointer network. Sweeping " + sweep_arg + " and " + sweep_arg2 + "."
+sweep_num = 1 # number to append to data folder
 
 
 ######################### DO NOT MODIFY BELOW THIS LINE #########################
@@ -38,7 +38,7 @@ sweep_num = 2 # number to append to data folder
 param_dict = {
     "seed": 324, # seed for numpy and tensorflow
 
-    "circ_filename": "../../qcircml_code/data/circol_base_4qubits_8gates_depth4_dict.p", # filename of circuit collection
+    "circ_filename": "../../qcircml_code/data/circol_base_4qubits_8gates_depth3_dict.p", # filename of circuit collection
 
     # batch parameters
     "load_dataset": False, # load dataset from file
@@ -52,7 +52,7 @@ param_dict = {
     "model_type": ["attention"], # type of model to use
     "layer_lists": [[ 80, 80, [('fc', int(700)), ('fc', int(700/2))] ]], # list of lists of number of hidden units for each desired fully connected layer (one list for each model)
 
-    "learning_rate": 0.003, # learning rate for optimizer# define critic loss function
+    "learning_rate": 0.001, # learning rate for optimizer# define critic loss function
     "load": False, # load model weights from file
     "model_load_filenames": ["../../qcircml_code/data_07282023_2/07282023_14_weights.h5"], # filename of model weights, must be same size as layer_lists
     "transpose": [True], # whether to transpose the image before feeding it into the model, must be same size as layer_lists

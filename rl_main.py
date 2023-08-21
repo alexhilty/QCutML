@@ -62,7 +62,7 @@ def run_model(
 
     ######## More Model Parameters ########
 
-    optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=learning_rate)
+    optimizer = tf.keras.optimizers.legacy.Adam(learning_rate=learning_rate, clipvalue=0.5)
     critic_loss = tf.keras.losses.Huber(reduction=tf.keras.losses.Reduction.SUM)
 
     def model_save_condition(moving_averages, last_checkpoint, window_size): # function to determine when to save model

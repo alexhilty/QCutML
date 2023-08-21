@@ -48,6 +48,18 @@ def run_episode(circuit_batch, model, env: CutEnvironment):
     # sample next action from the action probability distribution
     action = tf.random.categorical(action_logits_c, 1)
     action_probs_c = tf.nn.softmax(action_logits_c) # compute log probability of actions
+
+    # if any value in action is greater than or equal to the number of gates print error
+    # print(action >= tf.expand_dims(tf.constant(np.array([7] * circuit_batch.size[0]), dtype=tf.int64), 0))
+    if tf.math.reduce_any(tf.squeeze(action >= tf.expand_dims(tf.constant(np.array([8] * 90), dtype=tf.int64), 1))):
+        print("ERROR: action out of range")
+        tf.print("ERROR: action out of range")
+        tf.print(action)
+        tf.print(action_logits_c)
+        tf.print(images)
+        # quit()
+
+    # tf.print(action)
     action_probs = tf.gather_nd(action_probs_c, action, batch_dims = 1) # write chosen action probability to tensor array
 
     # apply action to environment to get next state and reward
@@ -109,6 +121,9 @@ def train_step(circuit_batch, model: tf.keras.Model, cut_env, critic_loss_func, 
 
     # compute the gradients from the loss
     grads = tape.gradient(loss, model.trainable_variables)
+
+    # clip the gradients
+    # grads, _ = tf.clip_by_global_norm(grads, 0.05)
 
     # apply the gradients to the model's parameters
     optimizer.apply_gradients(zip(grads, model.trainable_variables))
