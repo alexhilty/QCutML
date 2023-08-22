@@ -7,9 +7,9 @@ import numpy as np
 ######################### MODIFY THESE PARAMETERS #########################
 
 # first dimension
-sweep_arg = "learning_rate" # can be any argument that is passed to run_model
-start = 0.001
-end = 0.01
+sweep_arg = "layer_lists" # can be any argument that is passed to run_model
+start = 10
+end = 100
 steps = 10
 
 # second dimension, override with param list for arguments that are not numbers
@@ -23,7 +23,7 @@ values = np.linspace(start, end, steps)
 values2 = np.linspace(start2, end2, steps2)
 
 # override heere for non numeric arguments
-# values = [ [[ 80, 80, [('fc', int(700)), ('fc', int(700/2))] ]] for x in values]
+values = [ [[ int(x), 80, [('fc', int(700)), ('fc', int(700/2))] ]] for x in values]
 # values = [ [ [('flatten', None), ('fc', 1133), ('fc', 566)] ]] 
 # values2 = [1, 2, 3]
 
