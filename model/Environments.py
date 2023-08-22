@@ -5,7 +5,7 @@ import numpy as np
 class CutEnvironment:
     '''Defines the environment for the cutting problem that the agen will interact with.'''
 
-    def __init__(self, circuit_collection = None):
+    def __init__(self, circuit_dataset = None):
         '''Initializes the environment
         
         Parameters
@@ -14,15 +14,17 @@ class CutEnvironment:
                 collection of circuits to use for the environment
         '''
 
-        self.circol = circuit_collection
+        self.circol = circuit_dataset
 
-        # concatenate all lists of images into one numpy array
-        self.n_images = np.array(self.circol.images[0])
-        for i in range(1, len(self.circol.images)):
-            self.n_images = np.concatenate((self.n_images, np.array(self.circol.images[i])))
+        self.image_shape = (self.circol.num_qubits, sum(self.circol.reps))
 
-        self.t_images = tf.convert_to_tensor(self.n_images, dtype = tf.float32) # tensor of all images
-        self.t_images_breaks = tf.stack(np.cumsum(np.array([0] + [len(self.circol.images[i]) for i in range(len(self.circol.images))] ))) # tensor of all image breaks
+        # # concatenate all lists of images into one numpy array
+        # self.n_images = np.array(self.circol.images[0])
+        # for i in range(1, len(self.circol.images)):
+        #     self.n_images = np.concatenate((self.n_images, np.array(self.circol.images[i])))
+
+        # self.t_images = tf.convert_to_tensor(self.n_images, dtype = tf.float32) # tensor of all images
+        # self.t_images_breaks = tf.stack(np.cumsum(np.array([0] + [len(self.circol.images[i]) for i in range(len(self.circol.images))] ))) # tensor of all image breaks
 
     # defining environment step (cutting a circuit)
     # the action is index of the gate to cut (column of image to remove)
@@ -54,7 +56,7 @@ class CutEnvironment:
             action = actions[i][0]
 
             # remove gate from circuit
-            gates = list(self.circol.circuits[state[0]][state[1]])
+            gates = list(self.circol.current_section.circuits[state[0]][state[1]])
 
             if action < len(gates):
                 gates.pop(action)
@@ -64,11 +66,11 @@ class CutEnvironment:
 
             # # compute reward (negative depth difference) (old - new)
             # NOTE: maybe later scale with max possible improvement of each circuit
-            reward = self.circol.q_transpiled[state[0]][state[1]].depth() - self.circol.q_transpiled[new_state[0]][new_state[1]].depth() - 1
+            reward = self.circol.current_section.q_transpiled[state[0]][state[1]].depth() - self.circol.current_section.q_transpiled[new_state[0]][new_state[1]].depth() - 1
             reward = reward / abs(reward) * reward ** 2 if reward != 0 else 0
 
             rewards.write(i, reward).mark_used()
-            depths.write(i, self.circol.q_transpiled[new_state[0]][new_state[1]].depth()).mark_used()
+            depths.write(i, self.circol.current_section.q_transpiled[new_state[0]][new_state[1]].depth()).mark_used()
 
             # reward = self.circol.q_transpiled[self.state[0]][self.state[1]].depth() / self.circol.q_transpiled[new_state[0]][new_state[1]].depth()
             
@@ -77,22 +79,22 @@ class CutEnvironment:
         return rewards, depths#, self.get_image()
     
     # wrapper for use as tensorflow function
-    def cut(self, circuit_batch: tf.Tensor, actions: tf.Tensor):
+    def cut(self, circuit_batch: tf.RaggedTensor, actions: tf.RaggedTensor):
         '''See cut_numpy() for details.'''
 
         return tf.numpy_function(self.cut_numpy, [circuit_batch, actions], [tf.float32, tf.int32]) # FIXME: numpy_function has some limitations
 
-    # get image for current state
-    def get_image(self, n: tf.Tensor = None):
-        '''Gets the image for the current state.'''
+    # # get image for current state
+    # def get_image(self, n: tf.Tensor = None):
+    #     '''Gets the image for the current state.'''
 
-        n1, n2 = tf.split(n, num_or_size_splits=2)
-        # tf.print(tf.cast(n1, tf.int32))
-        # print(tf.get_static_value(n1), n2)
+    #     n1, n2 = tf.split(n, num_or_size_splits=2)
+    #     # tf.print(tf.cast(n1, tf.int32))
+    #     # print(tf.get_static_value(n1), n2)
 
-        image = tf.gather(self.t_images, tf.cast(tf.gather(self.t_images_breaks, n1), tf.int64) + tf.cast(n2, tf.int64))
+    #     image = tf.gather(self.t_images, tf.cast(tf.gather(self.t_images_breaks, n1), tf.int64) + tf.cast(n2, tf.int64))
 
-        return tf.squeeze(image)
+    #     return tf.squeeze(image)
     
     def convert_to_images_c(self, indexes: tf.Tensor):
         '''Converts the circuits in the given batch to images.
@@ -108,11 +110,20 @@ class CutEnvironment:
                 batch of images of the converted circuits
         '''
 
-        image_shape = self.circol.images[0][0].shape
+        # image_shape = self.circol.current_section.images[0][0].shape
         index_shape = indexes.shape
+        # print(self.image_shape)
 
-        # convert all circuits in batch to images using tf.scan
-        images = tf.scan(
-            lambda a, b: self.get_image(b), indexes, initializer = tf.zeros((image_shape[0], image_shape[1])))
+
+        # # convert all circuits in batch to images using tf.scan
+        # images = tf.scan(
+        #     lambda a, b: self.get_image(b), indexes, initializer = tf.zeros((image_shape[0], image_shape[1])))
+
+        # return images
+
+        # get images
+        images = tf.gather_nd(self.circol.current_section.images, indexes)
+
+        images = images.to_tensor(shape = (index_shape[0], self.image_shape[0], self.image_shape[1]))
 
         return images

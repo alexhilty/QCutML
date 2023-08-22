@@ -28,8 +28,8 @@ values = [ [[ int(x), 80, [('fc', int(700)), ('fc', int(700/2))] ]] for x in val
 # values2 = [1, 2, 3]
 
 # construct notes string based on sweep parameters
-notes = "Testing multi gates with pointer network. Sweeping " + sweep_arg + " and " + sweep_arg2 + "."
-sweep_num = 2 # number to append to data folder
+notes = "Testing new dataset class. Sweeping " + sweep_arg + " and " + sweep_arg2 + "."
+sweep_num = 1 # number to append to data folder
 
 
 ######################### DO NOT MODIFY BELOW THIS LINE #########################
@@ -38,7 +38,7 @@ sweep_num = 2 # number to append to data folder
 param_dict = {
     "seed": 324, # seed for numpy and tensorflow
 
-    "circ_filename": "../../qcircml_code/data/circol_base_4qubits_8gates_depth4_dict.p", # filename of circuit collection
+    "circ_filename": "../../qcircml_code/data/circset_4qubits_7gates_depth3/dataset.p", # filename of circuit collection
 
     # batch parameters
     "load_dataset": False, # load dataset from file

@@ -6,6 +6,7 @@ from qiskit.visualization import *
 import itertools
 import math as m
 import numpy as np
+import tensorflow as tf
 
 import operator as op
 import time
@@ -244,13 +245,15 @@ class CircuitSection(CircuitCollectionTemplate):
         self.circuits = [] # second list is bottom level
         self.q_circuits = []
         self.q_transpiled = []
-        self.images = []
+        self.images = None # store as nested ragged tensor
         self.best_depths = []
 
         self.circuit_indexes = {}
 
         self.train_indecies = []
         self.val_indecies = []
+
+        self.train_batches = []
 
 class CircuitDataset(CircuitCollectionTemplate):
 
@@ -278,7 +281,7 @@ class CircuitDataset(CircuitCollectionTemplate):
 
         self.pickle_list = [] # list of pickle files
 
-        self.current_section = None # current section of the dataset being used
+        self.batch_number = 0 # total number of batches
 
     ##### GENERATION #####
 
@@ -298,7 +301,6 @@ class CircuitDataset(CircuitCollectionTemplate):
         # generate top level
         circuits = list(unique_elem_it(itertools.permutations(seed, len(seed))))
         
-
         # shuffle list randomly
         np.random.shuffle(circuits)
 
@@ -458,9 +460,12 @@ class CircuitDataset(CircuitCollectionTemplate):
 
     ##### CONVERT TO IMAGES #####
 
-    def convert_to_image(self, gate_list):
+    def convert_to_image(self, gate_list, fixed_size = True):
 
-        image = np.zeros((sum(self.reps), self.num_qubits)) # initialize image
+        if fixed_size:
+            image = np.zeros((sum(self.reps), self.num_qubits)) # initialize image
+        else:
+            image = np.zeros((len(gate_list), self.num_qubits)) # initialize image
 
         # convert each gate to a column of the image
         for i, gate in enumerate(gate_list):
@@ -471,10 +476,10 @@ class CircuitDataset(CircuitCollectionTemplate):
         # transpose image
         image = np.transpose(image)
 
-        return image
+        return tf.convert_to_tensor(image, dtype = tf.float32)
 
     # convert all circuits to image based representations
-    def convert_to_images(self):
+    def convert_to_images(self, fixed_size = True):
 
         print("\nConverting Circuits to Images...")
         convert_start_time = time.time()
@@ -488,9 +493,16 @@ class CircuitDataset(CircuitCollectionTemplate):
             # load section
             section = pickle.load(open(self.pickle_list[l], "rb"))
 
+            images = [] # temporary list of images
+
             # convert all circuits to images
             for i in range(len(section.circuits)):
-                section.images.append(list(map(self.convert_to_image, section.circuits[i])))
+                images.append(tf.ragged.stack(list(
+                    map(self.convert_to_image, section.circuits[i], [fixed_size] * len(section.circuits[i]))
+                    )))
+
+            # convert to ragged tensor
+            section.images = tf.ragged.stack(images)
 
             # pickle section
             pickle.dump(section, open(section.pickle_file, "wb"))
@@ -515,6 +527,8 @@ class CircuitDataset(CircuitCollectionTemplate):
             # load section
             self.current_section = pickle.load(open(self.pickle_list[l], "rb"))
 
+            self.current_section.best_depths = []
+
 
             # loop through circuits
             for i in range(len(self.current_section.circuits) - 1): # exclude bottom level
@@ -527,9 +541,9 @@ class CircuitDataset(CircuitCollectionTemplate):
                     # print(len(self.current_section.q_transpiled))
 
                     # loop through children and choose best depth
-                    best_depth = 0
+                    best_depth = self.current_section.q_transpiled[children[0][0]][children[0][1]].depth()
                     for child in children:
-                        if self.current_section.q_transpiled[child[0]][child[1]].depth() > best_depth:
+                        if self.current_section.q_transpiled[child[0]][child[1]].depth() < best_depth:
                             best_depth = self.current_section.q_transpiled[child[0]][child[1]].depth()
                     
                     self.current_section.best_depths[-1].append(best_depth)
@@ -566,9 +580,11 @@ class CircuitDataset(CircuitCollectionTemplate):
     
     #### SETTERS ####
 
-    # set train percent
-    def set_train_percent(self, train_percent):
+    # set train percent and batch size
+    def set_batches(self, train_percent, batch_size, internal_loops = 1):
         self.train_percent = train_percent
+        self.batch_size = batch_size
+        self.batch_number = 0
 
         # set train and validation indecies
         # loop through sections
@@ -593,6 +609,21 @@ class CircuitDataset(CircuitCollectionTemplate):
             section.train_indecies = indecies[:int(len(indecies) * self.train_percent)]
             section.val_indecies = indecies[int(len(indecies) * self.train_percent):]
 
+            section.train_batches = []
+
+            for i in range(internal_loops):
+                # shuffle train indecies
+                np.random.shuffle(section.train_indecies)
+
+                # batch the train indecies
+                section.train_batches += [section.train_indecies[i:i + self.batch_size] for i in range(0, len(section.train_indecies), self.batch_size)]
+
+                # remove last batch if it is smaller than batch_size
+                if len(section.train_batches[-1]) < self.batch_size:
+                    section.train_batches.pop(-1)
+
+            self.batch_number += len(section.train_batches)
+
             # pickle section
             pickle.dump(section, open(section.pickle_file, "wb"))
 
@@ -600,9 +631,9 @@ class CircuitDataset(CircuitCollectionTemplate):
     def set_train(self, train):
         self.train_set = train
 
-    # set the batch size
-    def set_batch_size(self, batch_size):
-        self.batch_size = batch_size
+    # # set the batch size
+    # def set_batch_size(self, batch_size):
+    #     self.batch_size = batch_size
     
     #### ITERATION STUFF ####
 
@@ -613,29 +644,30 @@ class CircuitDataset(CircuitCollectionTemplate):
 
     def __iter__(self):
         self.current_section = pickle.load(open(self.pickle_list[0], "rb"))
-        self.current_index = 0 # (index of the next circuit to return) - 1
+        self.current_index = 0 # (index of the next batch to return) - 1
         self.current_section_index = 0 # index of the current section
         return self
     
     def __next__(self): # NOTE: batches smaller than batch_size are automatically thrown out during this process
-        self.current_index += self.batch_size # increment index
+        # self.current_index += self.batch_size # increment index
+        self.current_index += 1 # increment index
 
-        # check if we need to load a new section
-        len_check = len(self.current_section.train_indecies) if self.train_set else len(self.current_section.val_indecies)
+        # # check if we need to load a new section
+        # len_check = len(self.current_section.train_indecies) if self.train_set else len(self.current_section.val_indecies)
 
-        if self.current_index >= len_check: # if we need to load a new section
+        if self.current_index >= len(self.current_section.train_batches): # if we need to load a new section
             self.current_section_index += 1
 
             if self.current_section_index >= len(self.pickle_list):
                 raise StopIteration
 
             self.current_section = pickle.load(open(self.pickle_list[self.current_section_index], "rb"))
-            self.current_index = self.batch_size
+            self.current_index = 0
 
-        # create batch
-        if self.train_set:
-            batch = copy.deepcopy(self.current_section.train_indecies[self.current_index - self.batch_size:self.current_index])
-        else:
-            batch = copy.deepcopy(self.current_section.val_indecies[self.current_index - self.batch_size:self.current_index])
+        # # create batch
+        # if self.train_set:
+        #     batch = copy.deepcopy(self.current_section.train_indecies[self.current_index - self.batch_size:self.current_index])
+        # else:
+        #     batch = copy.deepcopy(self.current_section.val_indecies[self.current_index - self.batch_size:self.current_index])
 
-        return batch
+        return self.current_section.train_batches[self.current_index]

@@ -16,6 +16,7 @@ import csv
 from model.ActorCritic import Cutter, RandomSelector, CutterPointer
 from model.Utils import *
 from model.Environments import CutEnvironment
+from CircuitCollection import CircuitDataset as cd
 
 def run_model(
     ######## Parameters ########
@@ -132,17 +133,6 @@ def run_model(
     # load circuit collection
     circol = pickle.load(open(circ_filename, "rb"))
 
-    ######## Create Batched Dataset ########
-    if load_dataset:
-        train_data, train_index, val_data = pickle.load(open(dataset_filename, "rb"))
-    else:
-        dataset_filename = root_dir + date_str + "_" + str(max_run + 1) + "_dataset"  + ".p"
-        train_data, train_index, val_data = create_dataset(batch_size, loops, circol, train_percent, circol.depth)
-        pickle.dump((train_data, train_index, val_data), open(dataset_filename, "wb"))
-
-    # print("train_data:", train_data.shape)
-    # print("val_data:", val_data.shape)
-
     ######## Create Environment and Model ########
 
     env = CutEnvironment(circol) # create cut environment
@@ -194,7 +184,7 @@ def run_model(
         os.mkdir(root_dir + "checkpoints/")
 
     model_save_filename = root_dir + "checkpoints/" + date_str + "_" + str(max_run + 1) + "_weights" + ".h5"
-    rewards, averages, moving_averages = train_loop(train_data, models, env, critic_loss, optimizer, model_save_condition, window_size, model_save_filename, tf_function)
+    rewards, averages, moving_averages = train_loop(models, env, critic_loss, optimizer, model_save_condition, window_size, model_save_filename, tf_function)
 
     ######## Save Data ########
     csv_filename = root_dir + date_str + "_" + str(max_run + 1) + "_data" + ".csv"
@@ -303,7 +293,7 @@ def run_model(
     # hist_filename = root_dir + date_str + "_" + str(max_run + 1) + "_hist" + ".txt"
 
     # compute the best cuts
-    optimal_cuts, optimal_circuits_index = compute_best_cuts(circol, depth=circol.depth)
+    # optimal_cuts, optimal_circuits_index = compute_best_cuts(circol, depth=circol.depth)
 
     # validate all the models on validation and training data
     chosen_cut_list_v = []
@@ -311,12 +301,10 @@ def run_model(
     chosen_cut_list_t = []
     hist_list_t = []
     for i in range(len(models)):
-        chosen_cuts, hist = validation2(val_data, models[i], env, optimal_cuts)
-        chosen_cuts_t, hist_t = validation2(train_index, models[i], env, optimal_cuts)
+        hist = validation2(models[i], env, train_data = False) # validation data 
+        hist_t = validation2(models[i], env, train_data = True)
 
-        chosen_cut_list_v.append(chosen_cuts)
         hist_list_v.append(hist)
-        chosen_cut_list_t.append(chosen_cuts_t)
         hist_list_t.append(hist_t)
 
     # # write hist to file and print results
