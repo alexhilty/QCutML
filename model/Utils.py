@@ -292,7 +292,7 @@ def train_loop(model_list, env, critic_loss, optimizer, save_condition_func, win
 
 # another version of validation that gets more nuanced histogram data
 def validation2(model, env, train_data = False):
-    hist = {}
+    # hist = {}
     difference = []
 
     # loop through sections
@@ -336,12 +336,12 @@ def validation2(model, env, train_data = False):
         # compute difference in depth
         difference += list(depths.numpy() - np.array(depths_opt))
 
-        # compute histogram
-        for i in range(len(val_indexes)):
-            if difference[i] not in hist.keys():
-                hist[difference[i]] = 1
-            else:
-                hist[difference[i]] += 1
+        # # compute histogram
+        # for i in range(len(val_indexes)):
+        #     if difference[i] not in hist.keys():
+        #         hist[difference[i]] = 1
+        #     else:
+        #         hist[difference[i]] += 1
         
     return difference
 

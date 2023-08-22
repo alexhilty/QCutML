@@ -527,6 +527,8 @@ class CircuitDataset(CircuitCollectionTemplate):
             # load section
             self.current_section = pickle.load(open(self.pickle_list[l], "rb"))
 
+            self.current_section.best_depths = []
+
 
             # loop through circuits
             for i in range(len(self.current_section.circuits) - 1): # exclude bottom level
@@ -539,9 +541,9 @@ class CircuitDataset(CircuitCollectionTemplate):
                     # print(len(self.current_section.q_transpiled))
 
                     # loop through children and choose best depth
-                    best_depth = 0
+                    best_depth = self.current_section.q_transpiled[children[0][0]][children[0][1]].depth()
                     for child in children:
-                        if self.current_section.q_transpiled[child[0]][child[1]].depth() > best_depth:
+                        if self.current_section.q_transpiled[child[0]][child[1]].depth() < best_depth:
                             best_depth = self.current_section.q_transpiled[child[0]][child[1]].depth()
                     
                     self.current_section.best_depths[-1].append(best_depth)

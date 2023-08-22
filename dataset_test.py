@@ -55,6 +55,7 @@ def main2():
     circol = pickle.load(open(root_dir + "/dataset.p", "rb"))
 
     circol.set_batches(0.7, 90, 50)
+    circol.compute_optimal_depths()
 
     # dump dataset
     pickle.dump(circol, open(root_dir + "/dataset.p", "wb"))
