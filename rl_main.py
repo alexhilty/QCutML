@@ -133,17 +133,6 @@ def run_model(
     # load circuit collection
     circol = pickle.load(open(circ_filename, "rb"))
 
-    ######## Create Batched Dataset ########
-    # if load_dataset:
-    #     train_data, train_index, val_data = pickle.load(open(dataset_filename, "rb"))
-    # else:
-    #     dataset_filename = root_dir + date_str + "_" + str(max_run + 1) + "_dataset"  + ".p"
-    #     train_data, train_index, val_data = create_dataset(batch_size, loops, circol, train_percent, circol.depth)
-    #     pickle.dump((train_data, train_index, val_data), open(dataset_filename, "wb"))
-
-    # print("train_data:", train_data.shape)
-    # print("val_data:", val_data.shape)
-
     ######## Create Environment and Model ########
 
     env = CutEnvironment(circol) # create cut environment
