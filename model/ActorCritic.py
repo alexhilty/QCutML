@@ -32,25 +32,23 @@ class CutterPointer(tf.keras.Model):
 
         inputs = inputs.to_tensor(shape = (1, 4, 7)) # FIXME: allow for variable input size
 
-        print(inputs)
+        # print(inputs)
 
         # print(inputs)
         x = tf.transpose(inputs, perm=[0, 2, 1]) # transpose image for lstm
+        print(x.numpy())
 
         x = self.lstm(x) # lstm layer, shape = (batch_size, num_gates, lstm_width)
 
         # compute g
         g = tf.zeros((x.shape[0], self.lstm_width)) # initialize g
-        print(g)
+        # print(g)
 
-        for layer in self.g_model_list:
-            g = layer(g)
-            print(g)
-        g = self.out_g(g) # shape = (batch_size, lstm_width)
-        print(g)
+        # for layer in self.g_model_list:
+        #     g = layer(g)
+        # g = self.out_g(g) # shape = (batch_size, lstm_width)
         # compute attention
         a = self.attention(x, g)
-        print(a)
 
         return a, self.out_c(g) # size of a depends on number of gates in circuit
 

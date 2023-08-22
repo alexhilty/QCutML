@@ -22,6 +22,10 @@ class CutEnvironment:
         state = circuit_batch[0]
         action = actions[0][0]
 
+        # print("\nCut Numpy")
+        # print(state)
+        # print(action)
+
         # remove gate from circuit
         gates = list(self.circol.current_section.circuits[state[0]][state[1]])
 
@@ -30,8 +34,10 @@ class CutEnvironment:
 
         # get new state
         new_state = self.circol.gates_to_index(gates)
+        # print(self.circol.current_section.images[new_state[0]][new_state[1]].numpy())
 
         # # compute reward (negative depth difference) (old - new)
+
         reward = self.circol.current_section.q_transpiled[state[0]][state[1]].depth() - self.circol.current_section.q_transpiled[new_state[0]][new_state[1]].depth() - 1
         reward = reward / abs(reward) * reward ** 2 if reward != 0 else 0
 

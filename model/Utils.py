@@ -40,10 +40,14 @@ def run_episode(circuit_batch, model, env: CutEnvironment):
     # action_probs = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True)
     # values = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True)
 
+    print(circuit_batch[0].numpy())
+
     # compute all images in batch
     images = env.convert_to_images_c(circuit_batch)
 
-    action_logits_c, values = tf.map_fn(model, tf.expand_dims(images, 1), fn_output_signature=(tf.float32, tf.float32))
+    print(images[0].numpy())
+
+    action_logits_c, values = tf.map_fn(model, tf.expand_dims(images[0:1], 1), fn_output_signature=(tf.float32, tf.float32))
     # print(values)
     values = tf.squeeze(values, 1)
     
@@ -53,6 +57,8 @@ def run_episode(circuit_batch, model, env: CutEnvironment):
     # print(action_logits_c, tf.squeeze(values, 1))
 
     action = tf.random.categorical(action_logits_c, 1)
+    print(action_logits_c)
+    print(action[0].numpy())
     action_probs_c = tf.nn.softmax(action_logits_c) # compute log probability of actions
     action_probs = tf.gather_nd(action_probs_c, action, batch_dims = 1) # write chosen action probability to tensor array
 

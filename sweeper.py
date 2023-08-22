@@ -8,7 +8,7 @@ import numpy as np
 
 # first dimension
 sweep_arg = "learning_rate" # can be any argument that is passed to run_model
-start = 0.003
+start = 0.001
 end = 0.01
 steps = 10
 
@@ -28,8 +28,8 @@ values2 = np.linspace(start2, end2, steps2)
 # values2 = [1, 2, 3]
 
 # construct notes string based on sweep parameters
-notes = "Testing new dataset class. Sweeping " + sweep_arg + " and " + sweep_arg2 + "."
-sweep_num = 1 # number to append to data folder
+notes = "Testing new dataset class (Still not training). Sweeping " + sweep_arg + " and " + sweep_arg2 + "."
+sweep_num = 2 # number to append to data folder
 
 
 ######################### DO NOT MODIFY BELOW THIS LINE #########################
