@@ -109,21 +109,14 @@ class CutterPointer(tf.keras.Model):
         # print(inputs)
 
         x = tf.transpose(inputs, perm=[0, 2, 1]) # transpose image for lstm
-        # x = tf.map_fn(lambda y: tf.RaggedTensor.from_tensor(tf.convert_to_tensor(np.transpose(y.numpy()))), elems=inputs)
-
-        # print(x)
-
-        # x = tf.map_fn(lambda y: y.to_tensor(), elems=x, fn_output_signature = tf.TensorSpec(shape=(6, 4), dtype=tf.float32))
-
-        # print(x)
 
         x = self.lstm(x) # lstm layer, shape = (batch_size, num_gates, lstm_width)
 
         # compute g
         g = tf.zeros((x.shape[0], self.lstm_width)) # initialize g
-        for layer in self.g_model_list:
-            g = layer(g)
-        g = self.out_g(g) # shape = (batch_size, lstm_width)
+        # for layer in self.g_model_list:
+        #     g = layer(g)
+        # g = self.out_g(g) # shape = (batch_size, lstm_width)
         
         # compute attention
         a = self.attention(x, g)
@@ -144,17 +137,13 @@ class Attention(layers.Layer):
         self.v = self.add_weight("kernel_v", shape = (1, self.size), initializer = "random_normal", trainable = True)
 
     # take in two inputs and produce one output (first dimension of inputs is batch size)
-    def call(self, inputs: tf.Tensor, g: tf.Tensor):
+    def call(self, inputs: tf.tensor_scatter_nd_min):
         term1 = tf.map_fn(
                     lambda batch: tf.map_fn(lambda x: tf.matmul(self.WO, tf.expand_dims(x, -1)), batch),
                     inputs
                 )
         
-        term2 = tf.map_fn(
-                    lambda x: tf.matmul(self.WG, tf.expand_dims(x, -1)), g
-                )
-        
-        tan_sum = tf.nn.tanh(term1 + tf.repeat(tf.expand_dims(term2, 1), inputs.shape[1], axis = 1))
+        tan_sum = tf.nn.tanh(term1)
 
         final = tf.map_fn(
                     lambda batch: tf.map_fn(lambda x: tf.matmul(self.v, x), batch),
