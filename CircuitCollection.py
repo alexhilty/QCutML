@@ -230,7 +230,6 @@ class CircuitCollection(CircuitCollectionTemplate):
         
         return sum
 
-
 ############ DATASET ############
 # defines a dataset of circuits, with dynamic loading and saving for large datasets
 # will randomize order of circuits, while ensuring that each circuit is in the same pickle file as its children
@@ -406,16 +405,18 @@ class CircuitDataset(CircuitCollectionTemplate):
 
     # transpile circuits with n processes and transpile_args
     # trials specifies how many times to try transpile before choosing the best result (based on circuit depth)
-    def transpile_circuits(self, n, trials, **transpile_args):
+    def transpile_circuits(self, n, trials, pickle_indecies = None, **transpile_args):
 
-        print("\nTranspiling Circuits...")
+        print(f"\nTranspiling Circuits ({pickle_indecies})...")
         trans_start_time = time.time()
+
+        pickle_indecies = pickle_indecies if pickle_indecies != None else list(range(len(self.pickle_list)))
 
         if not self.built_circuits:
             raise Exception("transpile_circuits: No Circuits Built!")
         
         # loop through sections
-        for l in range(len(self.pickle_list)):
+        for l in pickle_indecies:
 
             # load section
             section = pickle.load(open(self.pickle_list[l], "rb"))
@@ -582,6 +583,10 @@ class CircuitDataset(CircuitCollectionTemplate):
 
     # set train percent and batch size
     def set_batches(self, train_percent, batch_size, internal_loops = 1):
+
+        print("\nSetting Batches...")
+        convert_start_time = time.time()
+
         self.train_percent = train_percent
         self.batch_size = batch_size
         self.batch_number = 0
@@ -627,6 +632,9 @@ class CircuitDataset(CircuitCollectionTemplate):
             # pickle section
             pickle.dump(section, open(section.pickle_file, "wb"))
 
+            # print run time
+            print("--- Set Batches Section " + str(l) + ": %s seconds ---" % (time.time() - convert_start_time))
+
     # set if we are iterating through the training or validation set
     def set_train(self, train):
         self.train_set = train
@@ -656,6 +664,7 @@ class CircuitDataset(CircuitCollectionTemplate):
         # len_check = len(self.current_section.train_indecies) if self.train_set else len(self.current_section.val_indecies)
 
         if self.current_index >= len(self.current_section.train_batches): # if we need to load a new section
+            print("Loading new section...")
             self.current_section_index += 1
 
             if self.current_section_index >= len(self.pickle_list):

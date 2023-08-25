@@ -14,20 +14,19 @@ import pickle
 import numpy as np
 import tensorflow as tf
 
-root_dir = "../../qcircml_code/data/circset_4qubits_7gates_depth3"
+root_dir = "../../qcircml_code/data/circset_4qubits_9gates_depth4_onebatch"
 
 
 def main():
     # Initialize a 4 qubit circuit
     n = 4
-    trials = 10
     gates = [(0, 1), (1, 2), (2, 3), (0, 2), (1, 3), (0, 3)]
     # gates = [(0, 1), (1, 2), (2, 3)]
     # reps = list(np.ones(len(gates)))
-    reps = [2, 1, 1, 1, 1, 1]
+    reps = [2, 2, 2, 1, 1, 1]
 
     # circuit collection
-    circol = cd(gates, n, 3, reps, 2500, root_dir)
+    circol = cd(gates, n, 4, reps, 50000, root_dir)
 
     # generate all children
     circol.generate_circuits()
@@ -38,51 +37,57 @@ def main():
     # convert to images
     circol.convert_to_images()
 
-    # transpile all circuits
-    circol.transpile_circuits(n = 1, trials = trials, coupling_map = CouplingMap.from_line(n), optimization_level=1)
-
-    # set train percent
-    circol.set_batches(0.8, 90, 1000)
-
-    # compute optimal depths
-    circol.compute_optimal_depths()
-
     # pickle dataset
     pickle.dump(circol, open(root_dir + "/dataset.p", "wb"))
+
+    # transpile all circuits
+    # circol.transpile_circuits(n = 10, trials = trials, coupling_map = CouplingMap.from_line(n), optimization_level=1)
+
+    # set train percent
+    # circol.set_batches(0.7, 90, 10)
+
+    # compute optimal depths
+    # circol.compute_optimal_depths()
+
+    # print("\nNumber of Batches:", circol.batch_number)
+
+    # pickle dataset
+    # pickle.dump(circol, open(root_dir + "/dataset.p", "wb"))
 
 def main2():
     # load dataset
     circol = pickle.load(open(root_dir + "/dataset.p", "rb"))
 
-    circol.set_batches(0.7, 90, 50)
+    # transpile some circuits
+    trials = 10
+    n = 4
+    circol.transpile_circuits(n = 5, trials = trials, pickle_indecies = None, coupling_map = CouplingMap.from_line(n), optimization_level=1)
+
     circol.compute_optimal_depths()
 
-    # dump dataset
+    # set train percent
+    # circol.set_batches(0.7, 90, 30)
+    # count = 0
+    # for circ in circol:
+    #     count += 1
+
+    # print(count)
+
+    # for each pickle file print train batches
+    # for file in circol.pickle_list:
+    #     section = pickle.load(open(file, "rb"))
+    #     print(len(section.train_batches))
+
+    # compute optimal depths
+    # circol.compute_optimal_depths()
+
+    print("\nNumber of Batches:", circol.batch_number)
+
+    # pickle dataset
     pickle.dump(circol, open(root_dir + "/dataset.p", "wb"))
-
-    # # circol.compute_optimal_depths()
-
-    # for i in range(len(circol.pickle_list)):
-    #     circol.load_section(i)
-
-    # # dump dataset
-    #     print(len(circol.current_section.best_depths))
-
-    # circol.set_batch_size(10)
-
-    # for i, batch in enumerate(circol):
-    #     print(f'{i}: {batch}')
-
-    # print('')
-
-    # circol.set_train(False)
-    # circol.reset()
-
-    # for i, batch in enumerate(circol):
-    #     print(f'{i}: {batch}')
 
 
 if __name__ == "__main__":
-    # main()
+    main()
 
     main2()

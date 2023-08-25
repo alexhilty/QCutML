@@ -26,8 +26,7 @@ def run_model(
     circ_filename = "../../qcircml_code/data/circol_base_4qubits.p", # filename of circuit collection
 
     # batch parameters
-    load_dataset = False, # load dataset from file
-    dataset_filename = "../../qcircml_code/data_07312023/9/07312023_9_dataset.p", # filename of batched dataset
+    reshuffle_dataset = False, # load dataset from file
     batch_size = 30,
     loops = 300,
     train_percent = 0.8,
@@ -57,7 +56,8 @@ def run_model(
 
     # notes
     notes = "",
-    show_plot = True):
+    show_plot = True, 
+    train = True):
 
     # tf.config.run_functions_eagerly(True)
 
@@ -122,8 +122,7 @@ def run_model(
         "date_str": date_str,
         "notes": notes,
         "validate_with_best": validate_with_best,
-        "load_dataset": load_dataset,
-        "dataset_filename": dataset_filename
+        "reshuffle_dataset": reshuffle_dataset,
     }
 
     ######## Set Seed ########
@@ -135,6 +134,9 @@ def run_model(
 
     ######## Create Environment and Model ########
 
+    if reshuffle_dataset:
+        circol.set_batches(train_percent, batch_size, loops)
+    
     env = CutEnvironment(circol) # create cut environment
     models = []
 
@@ -183,8 +185,9 @@ def run_model(
     if not os.path.exists(root_dir + "checkpoints/"):
         os.mkdir(root_dir + "checkpoints/")
 
-    model_save_filename = root_dir + "checkpoints/" + date_str + "_" + str(max_run + 1) + "_weights" + ".h5"
-    rewards, averages, moving_averages = train_loop(models, env, critic_loss, optimizer, model_save_condition, window_size, model_save_filename, tf_function)
+    if train:
+        model_save_filename = root_dir + "checkpoints/" + date_str + "_" + str(max_run + 1) + "_weights" + ".h5"
+        rewards, averages, moving_averages = train_loop(models, env, critic_loss, optimizer, model_save_condition, window_size, model_save_filename, tf_function)
 
     ######## Save Data ########
     csv_filename = root_dir + date_str + "_" + str(max_run + 1) + "_data" + ".csv"
@@ -290,8 +293,6 @@ def run_model(
 
     # print("Model Calls:", model.call_count)
 
-    # hist_filename = root_dir + date_str + "_" + str(max_run + 1) + "_hist" + ".txt"
-
     # compute the best cuts
     # optimal_cuts, optimal_circuits_index = compute_best_cuts(circol, depth=circol.depth)
 
@@ -319,6 +320,15 @@ def run_model(
         colors = ['red', 'tan', 'lime']
         labels = ['Agent ' + str(k) +  ' Validation Data', 'Agent ' + str(k) + ' Training Data', 'Random']
         res = plt.hist(plot_hist, bins=range(-1, max(random_full) + 3), color=colors, label=labels, density=True, align='left')
+
+        # write res to a file
+        hist_filename = root_dir + date_str + "_" + str(max_run + 1) + "_hist_model" + str(k) + ".txt"
+        with open(hist_filename, 'w') as f:
+            for i in range(len(res[0])):
+                for j in range(len(res[1]) - 1):
+                    f.write(str(res[0][i][j]) + " ")
+                f.write("\n")
+
         plt.legend()
         plt.title("Histogram of Gate Cut Depth Difference")
         plt.xlabel("Gate Cut Depth Difference")

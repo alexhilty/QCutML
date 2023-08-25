@@ -119,7 +119,7 @@ class CutterPointer(tf.keras.Model):
         # g = self.out_g(g) # shape = (batch_size, lstm_width)
         
         # compute attention
-        a = self.attention(x, g)
+        a = self.attention(x)
 
         return a, self.out_c(g) # size of a depends on number of gates in circuit
 
@@ -137,7 +137,7 @@ class Attention(layers.Layer):
         self.v = self.add_weight("kernel_v", shape = (1, self.size), initializer = "random_normal", trainable = True)
 
     # take in two inputs and produce one output (first dimension of inputs is batch size)
-    def call(self, inputs: tf.tensor_scatter_nd_min):
+    def call(self, inputs):
         term1 = tf.map_fn(
                     lambda batch: tf.map_fn(lambda x: tf.matmul(self.WO, tf.expand_dims(x, -1)), batch),
                     inputs
